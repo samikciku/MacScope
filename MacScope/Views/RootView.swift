@@ -34,7 +34,10 @@ struct RootView: View {
                 onNavigate: { appState.selection = $0 }
             )
         case .memory:
-            MemoryView(viewModel: appState.memoryViewModel)
+            MemoryView(
+                viewModel: appState.memoryViewModel,
+                processesViewModel: appState.processesViewModel
+            )
         case .cpu:
             CPUView(viewModel: appState.cpuViewModel)
         case .processes:

@@ -10,8 +10,8 @@
 - Build number: `2`
 - Minimum macOS: 14.0
 - Architecture: Apple Silicon (`arm64`)
-- DMG SHA-256: `6d81361532a50470f657399756c403511ae3609b112183e6a721b52d4fd3d6fd`
-- ZIP SHA-256: `0975f6eb69cbdefd6cd5227a63bfbbceaad2eff04a7638aa4db1562350d4e3b4`
+- DMG SHA-256: `4b8dde46d1391d1376f87e67ec9cf8d03c1754e505ec58d04c4b9afbba6ce84d`
+- ZIP SHA-256: `cce9d9d90ad6052df2d626032f27f9b0cadedbfef1ecdea09a6cc52e0a1a3a08`
 
 The DMG was independently verified with `hdiutil verify`. The ZIP was extracted into a temporary directory and its plist, version, architecture, and strict code signature were checked independently. The packaged app also completed a controlled GUI launch and graceful-quit smoke test.
 

@@ -17,7 +17,7 @@ Process details include public executable architecture, `.app` bundle identifier
 
 Configurable sustained CPU and swap alerts provide cooldown and hysteresis, a bounded local event timeline, and optional macOS notifications. A compact floating window can show CPU, RAM, GPU, and swap using the same shared monitoring engine, with persisted opacity and always-on-top preferences.
 
-The Memory screen includes purgeable memory, cumulative page-ins/page-outs, and their bounded per-second activity history.
+The Memory screen includes purgeable memory, cumulative page-ins/page-outs, and their bounded per-second activity history. Clicking **Used** opens a largest-first process-memory drill-down with process, PID, user, resident memory, protected task controls, search, and Process Details. It distinguishes visible process resident totals from system-used memory, which also includes kernel, wired/compressed, shared, and cached pages.
 
 The Disk screen reports public startup-volume capacity values plus bounded aggregate block-device read/write history from documented IOKit storage counters. Throughput is labeled as a system aggregate and is not presented as per-volume or per-process usage.
 

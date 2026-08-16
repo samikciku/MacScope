@@ -2,6 +2,8 @@ import SwiftUI
 
 struct MemoryView: View {
     @ObservedObject var viewModel: MemoryViewModel
+    @ObservedObject var processesViewModel: ProcessesViewModel
+    @State private var showsConsumers = false
 
     var body: some View {
         Group {
@@ -19,13 +21,39 @@ struct MemoryView: View {
             }
         }
         .navigationTitle("Memory")
+        .sheet(isPresented: $showsConsumers) {
+            MemoryConsumersView(
+                systemUsedBytes: currentUsedBytes,
+                processesViewModel: processesViewModel
+            )
+            .frame(minWidth: 760, minHeight: 580)
+        }
     }
 
     private func memoryContent(_ stats: MemoryStats) -> some View {
         ScrollView {
             Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 14) {
                 metricRow("Total", stats.totalBytes)
-                metricRow("Used", stats.usedBytes)
+                GridRow {
+                    Button {
+                        showsConsumers = true
+                    } label: {
+                        HStack {
+                            Text("Used")
+                            Spacer()
+                            Text(ByteFormatter.string(fromByteCount: stats.usedBytes))
+                                .monospacedDigit()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .gridCellColumns(2)
+                    .accessibilityLabel("Used memory, \(ByteFormatter.string(fromByteCount: stats.usedBytes))")
+                    .accessibilityHint("Open processes using memory")
+                }
                 metricRow("Available", stats.availableBytes)
                 Divider()
                 metricRow("Free", stats.freeBytes)
@@ -58,6 +86,11 @@ struct MemoryView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)
         }
+    }
+
+    private var currentUsedBytes: UInt64 {
+        guard case .loaded(let stats) = viewModel.state else { return 0 }
+        return stats.usedBytes
     }
 
     private func pressureColor(_ pressure: MemoryStats.Pressure) -> Color {
