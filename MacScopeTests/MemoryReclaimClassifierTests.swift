@@ -37,6 +37,41 @@ struct MemoryReclaimClassifierTests {
         ).classification == .active)
     }
 
+    @Test func groupSuggestionRequiresEveryTerminableMemberToBeLowerImpact() {
+        let candidate = MemoryReclaimAssessment(
+            classification: .lowerImpact, reason: "Idle", estimatedResidentBytes: 200_000_000
+        )
+        let protected = MemoryReclaimAssessment(
+            classification: .protected, reason: "Protected", estimatedResidentBytes: 0
+        )
+        let review = MemoryReclaimAssessment(
+            classification: .review, reason: "Review", estimatedResidentBytes: 100_000_000
+        )
+
+        let suggested = MemoryReclaimClassifier.assessGroup(
+            name: "Browser", assessments: [candidate, protected]
+        )
+        #expect(suggested.classification == .lowerImpact)
+        #expect(suggested.estimatedResidentBytes == 200_000_000)
+        #expect(MemoryReclaimClassifier.assessGroup(
+            name: "Browser", assessments: [candidate, review]
+        ).classification == .review)
+    }
+
+    @Test func activeGroupMemberMakesTheApplicationActive() {
+        let active = MemoryReclaimAssessment(
+            classification: .active, reason: "Working", estimatedResidentBytes: 300_000_000
+        )
+        #expect(MemoryReclaimClassifier.assessGroup(
+            name: "Browser", assessments: [active]
+        ).classification == .active)
+        #expect(MemoryReclaimClassifier.assessGroup(
+            name: "System", assessments: [
+                .init(classification: .protected, reason: "Protected", estimatedResidentBytes: 0)
+            ]
+        ).classification == .protected)
+    }
+
     private func sample(cpu: Double) -> ProcessResourceSample {
         .init(timestamp: Date(), residentBytes: 500_000_000, cpuPercent: cpu)
     }

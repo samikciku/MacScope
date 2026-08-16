@@ -10,8 +10,8 @@
 - Build number: `2`
 - Minimum macOS: 14.0
 - Architecture: Apple Silicon (`arm64`)
-- DMG SHA-256: `80d07db4f9ea9980f56ff3637fb56671f1df236dd47a2e15431228e1da1ddda6`
-- ZIP SHA-256: `9e38d0001bea057a973a7700eb25cf6e4fcca3c5079bd4aeb861e8ffa0e21084`
+- DMG SHA-256: `d2aaaf2e40dba59d4e4cba991343b8f19edb2f70c0542e235dc001093a13905b`
+- ZIP SHA-256: `017b5748c4640507e2754d3c1a0ab6e691a81bfbd4053a0e32f50eefe7948619`
 
 The DMG was independently verified with `hdiutil verify`. The ZIP was extracted into a temporary directory and its plist, version, architecture, and strict code signature were checked independently. The packaged app also completed a controlled GUI launch and graceful-quit smoke test.
 
@@ -35,7 +35,7 @@ The DMG was independently verified with `hdiutil verify`. The ZIP was extracted 
 - Use VoiceOver on Timeline, Resource Hogs, launch arguments, and open connections; confirm state is understandable without relying on color.
 - Recheck Dashboard navigation, Disk analysis/Trash, Network attribution, Energy, alerts, compact mode, and menu-bar mode.
 - Leave MacScope running for at least 30 minutes and note responsiveness, CPU use, memory growth, and unavailable fields.
-- In Memory, click **Used**, switch among the classification filters, and confirm lower-impact suggestions appear only after enough recent history is collected. Hover an assessment for its reason, and verify ending any task still requires confirmation and warns about unsaved work.
+- In Memory, click **Used**, switch between Applications and Processes and among the classification filters, and confirm lower-impact suggestions appear only after enough recent history is collected. Expand a multi-process app such as Firefox, hover group/member assessments for their reasons, and verify both individual and group termination require confirmation and warn about unsaved work.
 
 ## Known limitations
 

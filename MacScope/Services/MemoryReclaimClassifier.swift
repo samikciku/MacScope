@@ -83,4 +83,47 @@ enum MemoryReclaimClassifier {
             estimatedResidentBytes: process.residentBytes
         )
     }
+
+    static func assessGroup(
+        name: String,
+        assessments: [MemoryReclaimAssessment]
+    ) -> MemoryReclaimAssessment {
+        let terminable = assessments.filter { $0.classification != .protected }
+        guard !terminable.isEmpty else {
+            return .init(
+                classification: .protected,
+                reason: "No process in \(name) is eligible for termination.",
+                estimatedResidentBytes: 0
+            )
+        }
+
+        let estimatedBytes = clampedSum(terminable.map(\.estimatedResidentBytes))
+        if terminable.contains(where: { $0.classification == .active }) {
+            return .init(
+                classification: .active,
+                reason: "At least one process in this application is currently active.",
+                estimatedResidentBytes: estimatedBytes
+            )
+        }
+        if terminable.allSatisfy({ $0.classification == .lowerImpact }) {
+            let protectedCount = assessments.count - terminable.count
+            return .init(
+                classification: .lowerImpact,
+                reason: "Every terminable process is a lower-impact candidate.\(protectedCount > 0 ? " \(protectedCount) protected process(es) will be skipped." : "")",
+                estimatedResidentBytes: estimatedBytes
+            )
+        }
+        return .init(
+            classification: .review,
+            reason: "At least one process in this application needs manual review.",
+            estimatedResidentBytes: estimatedBytes
+        )
+    }
+
+    private static func clampedSum(_ values: [UInt64]) -> UInt64 {
+        values.reduce(0) { result, value in
+            let addition = result.addingReportingOverflow(value)
+            return addition.overflow ? .max : addition.partialValue
+        }
+    }
 }
