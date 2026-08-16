@@ -56,7 +56,7 @@ codesign --verify --deep --strict --verbose=2 "$app_dir"
 plutil -lint "$contents_dir/Info.plist"
 
 stage_zip="$stage_root/$artifact_name"
-ditto -c -k --keepParent "$app_dir" "$stage_zip"
+ditto -c -k --keepParent --norsrc "$app_dir" "$stage_zip"
 stage_dmg="$stage_root/$dmg_name"
 hdiutil create \
   -volname "MacScope ${marketing_version} Test" \
@@ -68,7 +68,9 @@ hdiutil create \
 
 mkdir -p "$dist_dir"
 rm -rf "$final_app_dir"
-ditto "$app_dir" "$final_app_dir"
+ditto --norsrc "$app_dir" "$final_app_dir"
+xattr -cr "$final_app_dir"
+codesign --verify --deep --strict --verbose=2 "$final_app_dir"
 cp "$stage_zip" "$final_zip"
 cp "$stage_dmg" "$final_dmg"
 
