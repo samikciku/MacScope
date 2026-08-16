@@ -2,7 +2,7 @@
 
 ## V2 test-build status
 
-An Apple Silicon V2.0.0 test `.app` is reproducibly packaged from the optimized SwiftPM build with bundle identifier `com.macscope.app`, compiled app-icon assets, macOS 14 minimum, and a local ad-hoc signature. ZIP and compressed read-only DMG artifacts are integrity-tested, and the app has completed a controlled GUI launch/quit smoke test. These are suitable for local hands-on testing, not trusted public distribution. See `V2_TEST_BUILD.md` for checksums and the test matrix.
+An Apple Silicon V2.0.0 test `.app` is reproducibly packaged from the optimized SwiftPM build with bundle identifier `com.macscope.app`, compiled app-icon assets, macOS 14 minimum, and a local ad-hoc signature. ZIP and compressed read-only DMG artifacts are integrity-tested, and the app has completed a controlled GUI launch/quit smoke test. CI now rebuilds and verifies the app signature, bundle metadata, ZIP, and DMG on every pull request. These are suitable for local hands-on testing, not trusted public distribution. See `V2_TEST_BUILD.md` for checksums and the test matrix, and `RELEASE_NOTES_V2.md` for the release summary.
 
 ## Distribution baseline
 
@@ -46,7 +46,7 @@ Do not place Apple IDs, app-specific passwords, API keys, certificate private ke
 
 - Create the Xcode macOS app target and archive scheme.
 - Choose the final bundle identifier and Apple Developer team.
-- Create production icon and metadata assets.
+- Review the existing generated icon and release metadata for final publication quality.
 - Complete signed-app Instruments Allocations/Leaks and longer Time Profiler runs.
 - Reduce and remeasure the observed ~3.9% one-core steady-state CPU sample.
 - Validate direct-distribution entitlements and process visibility on clean Macs.

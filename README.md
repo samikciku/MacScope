@@ -58,6 +58,8 @@ Complete installation, Gatekeeper-safe opening, source-build, permissions, packa
 
 Local V2 test-build artifacts and their checksums/test matrix are documented in [V2_TEST_BUILD.md](V2_TEST_BUILD.md). These generated artifacts are ad-hoc signed and are not a notarized public release.
 
+The V2 feature summary and current public-distribution limitations are documented in [RELEASE_NOTES_V2.md](RELEASE_NOTES_V2.md). Release artifacts can be checked locally with `./Packaging/verify-test-artifacts.sh` after packaging.
+
 ## Build from source
 
 Open `Package.swift` in Xcode, or build from Terminal:

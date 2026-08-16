@@ -19,3 +19,7 @@ jobs:
         run: swift build --disable-sandbox
       - name: Test
         run: swift test --disable-sandbox
+      - name: Package test artifacts
+        run: ./Packaging/package-test-app.sh
+      - name: Verify test artifacts
+        run: ./Packaging/verify-test-artifacts.sh
