@@ -84,20 +84,25 @@ final class ProcessesViewModel: ObservableObject {
     @Published var presentationMode: ProcessPresentationMode = .applications
     @Published private(set) var forceQuitEligibleIdentity: ProcessSnapshot.Identity?
     @Published var actionMessage: String?
+    @Published private(set) var processesBeingTerminated: Set<ProcessSnapshot.Identity> = []
+    @Published private(set) var groupsBeingTerminated: Set<String> = []
 
     private let monitor: any ProcessMonitorProtocol
     private let terminationService: ProcessTerminationService
     private let terminationPolicy: ProcessTerminationPolicy
+    private let applicationQuitService: ApplicationQuitService
     private var histories: [ProcessSnapshot.Identity: ProcessHistory] = [:]
 
     init(
         monitor: any ProcessMonitorProtocol = ProcessMonitor(),
         terminationService: ProcessTerminationService = ProcessTerminationService(),
-        terminationPolicy: ProcessTerminationPolicy = ProcessTerminationPolicy()
+        terminationPolicy: ProcessTerminationPolicy = ProcessTerminationPolicy(),
+        applicationQuitService: ApplicationQuitService = ApplicationQuitService()
     ) {
         self.monitor = monitor
         self.terminationService = terminationService
         self.terminationPolicy = terminationPolicy
+        self.applicationQuitService = applicationQuitService
     }
 
     var visibleProcesses: [ProcessSnapshot] {
@@ -181,6 +186,9 @@ final class ProcessesViewModel: ObservableObject {
     }
 
     func terminate(_ process: ProcessSnapshot) async {
+        guard !processesBeingTerminated.contains(process.identity) else { return }
+        processesBeingTerminated.insert(process.identity)
+        defer { processesBeingTerminated.remove(process.identity) }
         actionMessage = nil
         do {
             try await terminationService.send(.terminate, to: process)
@@ -196,8 +204,22 @@ final class ProcessesViewModel: ObservableObject {
     }
 
     func terminate(_ group: ApplicationProcessGroup) async {
+        guard !groupsBeingTerminated.contains(group.id) else { return }
+        groupsBeingTerminated.insert(group.id)
+        defer { groupsBeingTerminated.remove(group.id) }
         actionMessage = nil
         let eligible = terminableProcesses(in: group)
+        if GroupTerminationMode.mode(for: group) == .quitApplication {
+            let requested = applicationQuitService.requestQuit(processes: eligible)
+            if requested > 0 {
+                actionMessage = "Asked \(group.name) to quit normally. macOS and the application can handle unsaved work and cleanup."
+            } else {
+                actionMessage = "macOS could not identify \(group.name) as a running application, so no process signal was sent. Open an individual process only if you understand the risk."
+            }
+            try? await Task.sleep(for: .seconds(2))
+            await refresh()
+            return
+        }
         var sent = 0
         var failed = 0
 

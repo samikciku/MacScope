@@ -36,6 +36,7 @@ struct MemoryConsumersView: View {
     let systemUsedBytes: UInt64
     @ObservedObject var memoryViewModel: MemoryViewModel
     @ObservedObject var processesViewModel: ProcessesViewModel
+    @StateObject private var actionCoordinator: MemoryActionCoordinator
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
     @State private var selectedIdentity: ProcessSnapshot.Identity?
@@ -43,8 +44,22 @@ struct MemoryConsumersView: View {
     @State private var pendingGroupTermination: ApplicationProcessGroup?
     @State private var filter: MemoryConsumerFilter = .all
     @State private var presentation: MemoryConsumerPresentation = .applications
-    @State private var reclaimReport: MemoryReclaimReport?
-    @State private var isMeasuringReclaim = false
+
+    init(
+        systemUsedBytes: UInt64,
+        memoryViewModel: MemoryViewModel,
+        processesViewModel: ProcessesViewModel
+    ) {
+        self.systemUsedBytes = systemUsedBytes
+        self.memoryViewModel = memoryViewModel
+        self.processesViewModel = processesViewModel
+        _actionCoordinator = StateObject(
+            wrappedValue: MemoryActionCoordinator(
+                memoryViewModel: memoryViewModel,
+                processesViewModel: processesViewModel
+            )
+        )
+    }
 
     private var consumers: [ProcessSnapshot] {
         guard case .loaded(let snapshots) = processesViewModel.state else { return [] }
@@ -126,21 +141,28 @@ struct MemoryConsumersView: View {
             Button("Cancel", role: .cancel) { pendingTermination = nil }
             Button("End Task", role: .destructive) {
                 pendingTermination = nil
-                Task { await terminateAndMeasure(process) }
+                Task { await actionCoordinator.terminate(process) }
             }
         } message: { process in
             Text("End \(process.name) (PID \(process.pid))? Unsaved work may be lost. MacScope will send a normal termination request.")
         }
-        .alert("End Application Tasks?", isPresented: groupTerminationPresented, presenting: pendingGroupTermination) { group in
+        .alert(groupAlertTitle, isPresented: groupTerminationPresented, presenting: pendingGroupTermination) { group in
             Button("Cancel", role: .cancel) { pendingGroupTermination = nil }
-            Button("End All Tasks", role: .destructive) {
+            Button(group.applicationPath == nil ? "End All Tasks" : "Quit Application", role: .destructive) {
                 pendingGroupTermination = nil
-                Task { await terminateAndMeasure(group) }
+                Task {
+                    await actionCoordinator.terminate(
+                        group,
+                        estimatedResidentBytes: assessment(for: group).estimatedResidentBytes
+                    )
+                }
             }
         } message: { group in
-            let eligible = processesViewModel.terminableProcesses(in: group).count
-            let protected = group.processes.count - eligible
-            Text("End \(eligible) process(es) in \(group.name)? Unsaved work may be lost. MacScope sends normal termination requests.\(protected > 0 ? " \(protected) protected process(es) will be skipped." : "")")
+            if group.applicationPath == nil {
+                Text("End eligible processes in \(group.name)? Unsaved work may be lost. MacScope will use normal termination requests.")
+            } else {
+                Text("Ask \(group.name) to quit normally? The application can prompt for unsaved work. If macOS cannot identify it, MacScope will take no action.")
+            }
         }
         .alert("Process Action", isPresented: actionMessagePresented) {
             Button("OK") { processesViewModel.actionMessage = nil }
@@ -166,14 +188,14 @@ struct MemoryConsumersView: View {
                 Spacer()
                 Text(ByteFormatter.string(fromByteCount: suggestedBytes)).monospacedDigit()
             }
-            if isMeasuringReclaim {
+            if actionCoordinator.isMeasuring {
                 HStack {
                     ProgressView().controlSize(.small)
                     Text("Measuring memory after termination…")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
-            if let report = reclaimReport {
+            if let report = actionCoordinator.report {
                 reclaimSummary(report)
             }
             Picker("Display", selection: $presentation) {
@@ -317,44 +339,6 @@ struct MemoryConsumersView: View {
         )
     }
 
-    private func terminateAndMeasure(_ process: ProcessSnapshot) async {
-        guard let before = currentMemoryStats else {
-            await processesViewModel.terminate(process)
-            return
-        }
-        isMeasuringReclaim = true
-        reclaimReport = nil
-        let estimate = process.residentBytes
-        await processesViewModel.terminate(process)
-        await finishMeasurement(target: process.name, estimate: estimate, before: before)
-    }
-
-    private func terminateAndMeasure(_ group: ApplicationProcessGroup) async {
-        guard let before = currentMemoryStats else {
-            await processesViewModel.terminate(group)
-            return
-        }
-        isMeasuringReclaim = true
-        reclaimReport = nil
-        let estimate = assessment(for: group).estimatedResidentBytes
-        await processesViewModel.terminate(group)
-        await finishMeasurement(target: group.name, estimate: estimate, before: before)
-    }
-
-    private func finishMeasurement(target: String, estimate: UInt64, before: MemoryStats) async {
-        try? await Task.sleep(for: .seconds(2))
-        await memoryViewModel.refresh()
-        if let after = currentMemoryStats {
-            reclaimReport = MemoryReclaimReport(
-                targetName: target,
-                estimatedResidentBytes: estimate,
-                before: before,
-                after: after
-            )
-        }
-        isMeasuringReclaim = false
-    }
-
     private var currentMemoryStats: MemoryStats? {
         guard case .loaded(let stats) = memoryViewModel.state else { return nil }
         return stats
@@ -420,6 +404,10 @@ struct MemoryConsumersView: View {
         )
     }
 
+    private var groupAlertTitle: String {
+        pendingGroupTermination?.applicationPath == nil ? "End All Tasks?" : "Quit Application?"
+    }
+
     private var actionMessagePresented: Binding<Bool> {
         Binding(
             get: { processesViewModel.actionMessage != nil },
@@ -433,6 +421,7 @@ struct MemoryConsumersView: View {
         case .allowed:
             Button("End Task…", role: .destructive) { pendingTermination = process }
                 .buttonStyle(.borderless)
+                .disabled(processesViewModel.processesBeingTerminated.contains(process.identity) || actionCoordinator.isMeasuring)
                 .accessibilityLabel("End task \(process.name), PID \(process.pid)")
         case .denied(let reason):
             Button("Protected") {}
@@ -447,9 +436,10 @@ struct MemoryConsumersView: View {
     private func groupTerminationButton(_ group: ApplicationProcessGroup) -> some View {
         let count = processesViewModel.terminableProcesses(in: group).count
         if count > 0 {
-            Button("End All…", role: .destructive) { pendingGroupTermination = group }
+            Button(group.applicationPath == nil ? "End All…" : "Quit…", role: .destructive) { pendingGroupTermination = group }
                 .buttonStyle(.borderless)
-                .help("End \(count) terminable process(es) in \(group.name)")
+                .disabled(processesViewModel.groupsBeingTerminated.contains(group.id) || actionCoordinator.isMeasuring)
+                .help(group.applicationPath == nil ? "End \(count) terminable process(es) in \(group.name)" : "Ask \(group.name) to quit normally")
         } else {
             Button("Protected") {}
                 .buttonStyle(.borderless)

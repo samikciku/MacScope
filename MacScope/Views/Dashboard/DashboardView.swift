@@ -16,6 +16,9 @@ struct DashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                Text("MacScope explains what is slowing down your Mac and helps you act safely.")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
                 HealthSummaryCard(assessment: healthAssessment) {
                     onNavigate(healthAssessment.destination)
                 }
