@@ -1,8 +1,8 @@
 # Release Preparation
 
-## V1 test-build status
+## V2 test-build status
 
-An Apple Silicon test `.app` is reproducibly packaged from the optimized SwiftPM build with bundle identifier `com.macscope.app`, compiled app-icon assets, macOS 14 minimum, and a local ad-hoc signature. ZIP and DMG test artifacts are integrity-tested. These are suitable for local hands-on testing, not trusted public distribution.
+An Apple Silicon V2.0.0 test `.app` is reproducibly packaged from the optimized SwiftPM build with bundle identifier `com.macscope.app`, compiled app-icon assets, macOS 14 minimum, and a local ad-hoc signature. ZIP and compressed read-only DMG artifacts are integrity-tested, and the app has completed a controlled GUI launch/quit smoke test. These are suitable for local hands-on testing, not trusted public distribution. See `V2_TEST_BUILD.md` for checksums and the test matrix.
 
 ## Distribution baseline
 

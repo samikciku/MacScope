@@ -39,6 +39,8 @@ enum ProcessQuery {
             $0.name.localizedCaseInsensitiveContains(query)
                 || String($0.pid).contains(query)
                 || $0.bundleIdentifier?.localizedCaseInsensitiveContains(query) == true
+                || $0.codeSigning?.signingIdentifier?.localizedCaseInsensitiveContains(query) == true
+                || $0.codeSigning?.teamIdentifier?.localizedCaseInsensitiveContains(query) == true
         }
 
         return filtered.sorted { lhs, rhs in

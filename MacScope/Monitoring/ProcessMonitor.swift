@@ -97,6 +97,7 @@ actor ProcessMonitor: ProcessMonitorProtocol {
                     owner: metadata.owner,
                     architecture: metadata.architecture,
                     bundleIdentifier: metadata.bundleIdentifier,
+                    codeSigning: nil,
                     timestamp: timestamp,
                     wakeupsPerSecond: resourceRates?.wakeupsPerSecond,
                     diskReadBytesPerSecond: resourceRates?.diskReadBytesPerSecond,

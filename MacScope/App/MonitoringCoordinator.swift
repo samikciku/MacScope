@@ -14,6 +14,7 @@ final class MonitoringCoordinator {
     private let settings: MonitoringSettings
     private let alertCenter: AlertCenter
     private let alertEvaluator: ResourceAlertEvaluator
+    private let resourceHogAlertEvaluator: ResourceHogAlertEvaluator
 
     private var memoryTask: Task<Void, Never>?
     private var cpuTask: Task<Void, Never>?
@@ -37,7 +38,8 @@ final class MonitoringCoordinator {
         thermalViewModel: ThermalViewModel,
         settings: MonitoringSettings,
         alertCenter: AlertCenter,
-        alertEvaluator: ResourceAlertEvaluator
+        alertEvaluator: ResourceAlertEvaluator,
+        resourceHogAlertEvaluator: ResourceHogAlertEvaluator
     ) {
         self.memoryViewModel = memoryViewModel
         self.cpuViewModel = cpuViewModel
@@ -51,6 +53,7 @@ final class MonitoringCoordinator {
         self.settings = settings
         self.alertCenter = alertCenter
         self.alertEvaluator = alertEvaluator
+        self.resourceHogAlertEvaluator = resourceHogAlertEvaluator
     }
 
     func start() {
@@ -76,6 +79,7 @@ final class MonitoringCoordinator {
         processTask = Task { [weak self] in
             while let self, !Task.isCancelled {
                 await processesViewModel.refresh()
+                await evaluateResourceHogAlerts()
                 guard await sleep(for: settings.processRefreshDuration) else { return }
             }
         }
@@ -104,6 +108,9 @@ final class MonitoringCoordinator {
         batteryTask = Task { [weak self] in
             while let self, !Task.isCancelled {
                 await batteryViewModel.refresh()
+                if case .loaded(let stats) = batteryViewModel.state {
+                    alertCenter.observeBatteryState(stats)
+                }
                 await evaluateBatteryAlert()
                 guard await sleep(for: .seconds(30)) else { return }
             }
@@ -200,6 +207,27 @@ final class MonitoringCoordinator {
                 "Battery charge remained at \(value.formatted(.percent.precision(.fractionLength(0)))) below the configured \(threshold.formatted(.percent.precision(.fractionLength(0)))) threshold."
             }
         ) {
+            alertCenter.record(event, postNotification: settings.notificationsEnabled)
+        }
+    }
+
+    private func evaluateResourceHogAlerts() async {
+        guard case .loaded = processesViewModel.state else { return }
+        let traffic: [ProcessNetworkUsage]
+        if case .available(let values) = networkViewModel.processTraffic { traffic = values } else { traffic = [] }
+        let measurements = ResourceHogAnalyzer.measurements(
+            groups: processesViewModel.applicationGroups,
+            processNetworkUsage: traffic,
+            thresholds: settings.resourceHogThresholds
+        )
+        let events = await resourceHogAlertEvaluator.evaluate(
+            measurements: measurements,
+            at: Date(),
+            enabled: settings.hogAlertsEnabled,
+            duration: settings.alertDuration,
+            cooldown: settings.alertCooldown
+        )
+        for event in events {
             alertCenter.record(event, postNotification: settings.notificationsEnabled)
         }
     }

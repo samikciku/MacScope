@@ -13,7 +13,7 @@ Every individual process row includes a confirmed **End Task…** action. MacSco
 
 Application groups such as Firefox also include a confirmed **End All…** action that sends termination requests to every eligible child while skipping protected processes.
 
-Process details include cached public executable architecture and `.app` bundle identifiers when accessible; bundle identifiers participate in search.
+Process details include public executable architecture, `.app` bundle identifiers, and on-demand Security-framework signature validation with signing/team identifiers when accessible. Signature results are cached for up to 256 executable paths and are not collected during background process polling. Entitlements and certificate contents are not collected. Opening Process Details also performs bounded, on-demand reads of launch arguments and up to 200 visible listening sockets or active network endpoints. Connection inspection has a five-second timeout and a 1 MiB output ceiling. Arguments are redacted for common credential patterns before display, but redaction is best-effort and output should still be reviewed before sharing. None of these inspections adds background polling.
 
 Configurable sustained CPU and swap alerts provide cooldown and hysteresis, a bounded local event timeline, and optional macOS notifications. A compact floating window can show CPU, RAM, GPU, and swap using the same shared monitoring engine, with persisted opacity and always-on-top preferences.
 
@@ -29,9 +29,11 @@ The Battery screen uses public IOKit power-source data for charge, source, charg
 
 The Thermal screen records macOS nominal/fair/serious/critical system pressure and Low Power Mode with bounded history. Optional sustained thermal alerts reuse the central alert engine; exact sensor temperatures remain explicitly unavailable.
 
-The Timeline screen combines emitted resource alerts and real thermal-state transitions in a bounded 500-entry local history. It does not persist or transmit event data.
+The Timeline screen combines emitted resource alerts with real thermal, memory-pressure, battery/AC charging, and Low Power Mode transitions in a bounded 500-entry local history. Events can be filtered by type and severity or searched by title/message, with newest-first filtered and total counts. Initial samples establish baselines, so only actual changes generate transition events. It does not persist or transmit event data.
 
 The Energy screen reports public per-process nanojoule-derived power, wakeups, disk rates, and CPU where accessible. These are direct MacScope measurements and are not labeled as Apple's proprietary Energy Impact metric.
+
+The Resource Hogs screen aggregates related application processes and highlights configurable memory, CPU, disk, network, and measured-power threshold violations. Findings can be filtered by category or searched by application/user, show filtered and total counts, and open Process Details for the established safety-gated task controls. Optional sustained application alerts share the global duration, cooldown, notification, and timeline behavior; their internal state is bounded and each evaluation emits at most five new events. The 20 newest Resource Hog events from the existing bounded alert history appear on the same screen. Per-process GPU and swap attribution remain unavailable and are not inferred.
 
 Alert rules cover sustained CPU, swap, thermal pressure, startup-disk usage, and low battery. Direction-aware hysteresis prevents repeated edge-triggering, and unsupported battery state never emits an event.
 
@@ -40,6 +42,8 @@ Public memory-pressure events update normal, warning, and critical state and ent
 The Dashboard summarizes memory, CPU, GPU, processes, disk, network, battery, thermal state, top consumers, bounded trends, and the five most recent local events from the same shared monitoring state.
 
 Dashboard cards and charts navigate directly to their detailed category. Top-process rows include the owning user and open the selected process details. Process-oriented tables and lists expose the owner wherever macOS provides it.
+
+V2 diagnostic surfaces provide explicit VoiceOver summaries and do not rely on icon shape, layout, or color alone for severity and state. Timeline events state their severity in text, while Resource Hog findings, launch arguments, connection endpoints, and filtered counts expose combined accessibility labels.
 
 ## Requirements
 
@@ -51,6 +55,8 @@ Dashboard cards and charts navigate directly to their detailed category. Top-pro
 MacScope can be built and run from source now. When a prebuilt release is published, download the newest DMG from the repository's GitHub Releases page, open it, and copy `MacScope.app` to `/Applications`. Test releases may be ad-hoc signed rather than notarized; read the release notes and verify the published checksum.
 
 Complete installation, Gatekeeper-safe opening, source-build, permissions, packaging, and uninstall instructions are in [INSTALL.md](INSTALL.md).
+
+Local V2 test-build artifacts and their checksums/test matrix are documented in [V2_TEST_BUILD.md](V2_TEST_BUILD.md). These generated artifacts are ad-hoc signed and are not a notarized public release.
 
 ## Build from source
 
@@ -80,9 +86,10 @@ The test suite includes live read-only integration tests and one termination tes
 ## Privacy and safety
 
 - MacScope does not include analytics or transmit collected monitoring data.
-- Network monitoring reads byte counters; it does not inspect packet contents or remote destinations.
+- Network monitoring reads byte counters and does not inspect packet contents. Process Details can show visible endpoint addresses only after the user opens that process; results remain in memory and are not transmitted.
 - Disk analysis begins only after you select a folder. Removal is confirmed and uses macOS Trash.
 - Process actions are confirmed, safety-gated, and protected against PID reuse.
+- Launch arguments are collected only after Process Details opens, bounded in memory, and filtered for common secret patterns before display. They are never persisted or transmitted.
 - MacScope does not request an administrator password or attempt to bypass macOS protections.
 
 See [SECURITY.md](SECURITY.md) for security reporting and trust boundaries.

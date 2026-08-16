@@ -57,6 +57,13 @@ struct RootView: View {
             SystemEventTimelineView(alertCenter: appState.alertCenter)
         case .energy:
             EnergyView(viewModel: appState.processesViewModel)
+        case .resourceHogs:
+            ResourceHogsView(
+                processesViewModel: appState.processesViewModel,
+                networkViewModel: appState.networkViewModel,
+                settings: appState.settings,
+                alertCenter: appState.alertCenter
+            )
         case .selfMonitoring:
             SelfMonitoringView(viewModel: appState.processesViewModel)
         case .alerts:

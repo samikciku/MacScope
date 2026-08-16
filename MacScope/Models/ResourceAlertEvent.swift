@@ -6,6 +6,7 @@ enum ResourceAlertKind: String, Equatable, Sendable {
     case thermal
     case diskCapacity
     case battery
+    case resourceHog
 
     var title: String {
         switch self {
@@ -14,6 +15,7 @@ enum ResourceAlertKind: String, Equatable, Sendable {
         case .thermal: "High Thermal Pressure"
         case .diskCapacity: "Disk Almost Full"
         case .battery: "Low Battery"
+        case .resourceHog: "Application Resource Hog"
         }
     }
 }

@@ -34,7 +34,7 @@ You can also open `Package.swift` directly in Xcode and run the `MacScope` execu
 ./Packaging/package-test-app.sh
 ```
 
-The script creates an optimized, ad-hoc signed app and ZIP in `dist/`. These generated files are intentionally excluded from Git.
+The script creates an optimized, ad-hoc signed app, ZIP, and DMG in `dist/`, deriving artifact names from `Packaging/Info.plist`. These generated files are intentionally excluded from Git.
 
 ## Permissions and feature notes
 

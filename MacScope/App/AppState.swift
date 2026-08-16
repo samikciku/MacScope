@@ -15,6 +15,7 @@ final class AppState: ObservableObject {
     let thermalViewModel: ThermalViewModel
     let alertCenter: AlertCenter
     private let alertEvaluator: ResourceAlertEvaluator
+    private let resourceHogAlertEvaluator: ResourceHogAlertEvaluator
     private var monitoringCoordinator: MonitoringCoordinator?
 
     init(
@@ -29,7 +30,8 @@ final class AppState: ObservableObject {
         batteryViewModel: BatteryViewModel = BatteryViewModel(),
         thermalViewModel: ThermalViewModel = ThermalViewModel(),
         alertCenter: AlertCenter = AlertCenter(),
-        alertEvaluator: ResourceAlertEvaluator = ResourceAlertEvaluator()
+        alertEvaluator: ResourceAlertEvaluator = ResourceAlertEvaluator(),
+        resourceHogAlertEvaluator: ResourceHogAlertEvaluator = ResourceHogAlertEvaluator()
     ) {
         self.memoryViewModel = memoryViewModel
         self.cpuViewModel = cpuViewModel
@@ -43,6 +45,7 @@ final class AppState: ObservableObject {
         self.thermalViewModel = thermalViewModel
         self.alertCenter = alertCenter
         self.alertEvaluator = alertEvaluator
+        self.resourceHogAlertEvaluator = resourceHogAlertEvaluator
     }
 
     func startMonitoring() {
@@ -59,7 +62,8 @@ final class AppState: ObservableObject {
                 thermalViewModel: thermalViewModel,
                 settings: settings,
                 alertCenter: alertCenter,
-                alertEvaluator: alertEvaluator
+                alertEvaluator: alertEvaluator,
+                resourceHogAlertEvaluator: resourceHogAlertEvaluator
             )
         }
         monitoringCoordinator?.start()
@@ -92,6 +96,7 @@ enum AppSection: String, CaseIterable, Identifiable, Sendable {
     case thermal
     case timeline
     case energy
+    case resourceHogs
     case selfMonitoring
     case alerts
     case settings
@@ -112,6 +117,7 @@ enum AppSection: String, CaseIterable, Identifiable, Sendable {
         case .thermal: "Thermal"
         case .timeline: "Timeline"
         case .energy: "Energy"
+        case .resourceHogs: "Resource Hogs"
         case .selfMonitoring: "MacScope"
         case .alerts: "Alerts"
         case .settings: "Settings"
@@ -132,6 +138,7 @@ enum AppSection: String, CaseIterable, Identifiable, Sendable {
         case .thermal: "thermometer.medium"
         case .timeline: "clock.arrow.circlepath"
         case .energy: "bolt"
+        case .resourceHogs: "flame"
         case .selfMonitoring: "scope"
         case .alerts: "bell.badge"
         case .settings: "gearshape"

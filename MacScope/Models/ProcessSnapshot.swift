@@ -1,5 +1,18 @@
 import Foundation
 
+struct ProcessCodeSigningInfo: Equatable, Sendable {
+    enum Validation: String, Equatable, Sendable {
+        case valid = "Valid"
+        case invalid = "Invalid"
+        case unsigned = "Unsigned"
+        case unavailable = "Unavailable"
+    }
+
+    let validation: Validation
+    let signingIdentifier: String?
+    let teamIdentifier: String?
+}
+
 struct ProcessSnapshot: Identifiable, Equatable, Sendable {
     struct Identity: Hashable, Sendable {
         let pid: Int32
@@ -17,6 +30,7 @@ struct ProcessSnapshot: Identifiable, Equatable, Sendable {
     let owner: String?
     let architecture: String?
     let bundleIdentifier: String?
+    let codeSigning: ProcessCodeSigningInfo?
     let timestamp: Date
     let wakeupsPerSecond: Double?
     let diskReadBytesPerSecond: Double?
@@ -36,6 +50,7 @@ struct ProcessSnapshot: Identifiable, Equatable, Sendable {
         owner: String?,
         architecture: String?,
         bundleIdentifier: String? = nil,
+        codeSigning: ProcessCodeSigningInfo? = nil,
         timestamp: Date,
         wakeupsPerSecond: Double? = nil,
         diskReadBytesPerSecond: Double? = nil,
@@ -54,6 +69,7 @@ struct ProcessSnapshot: Identifiable, Equatable, Sendable {
         self.owner = owner
         self.architecture = architecture
         self.bundleIdentifier = bundleIdentifier
+        self.codeSigning = codeSigning
         self.timestamp = timestamp
         self.wakeupsPerSecond = wakeupsPerSecond
         self.diskReadBytesPerSecond = diskReadBytesPerSecond
