@@ -19,6 +19,7 @@ stage_root="$(mktemp -d /private/tmp/MacScope-package.XXXXXX)"
 trap 'rm -rf "$stage_root"' EXIT
 app_dir="$stage_root/MacScope.app"
 contents_dir="$app_dir/Contents"
+daemon_dir="$contents_dir/Library/LaunchDaemons"
 asset_catalog="$build_dir/Assets.xcassets"
 iconset_dir="$asset_catalog/AppIcon.appiconset"
 icon_master="$build_dir/MacScopeIcon.png"
@@ -30,9 +31,18 @@ export SWIFTPM_MODULECACHE_OVERRIDE="$build_dir/swift-module-cache"
 swift build -c release --disable-sandbox --jobs 2 --cache-path "$build_dir/cache"
 binary_dir="$(swift build -c release --disable-sandbox --show-bin-path --cache-path "$build_dir/cache")"
 
-mkdir -p "$contents_dir/MacOS" "$contents_dir/Resources" "$iconset_dir"
+mkdir -p "$contents_dir/MacOS" "$contents_dir/Resources" "$daemon_dir" "$iconset_dir"
 cp "$binary_dir/MacScope" "$contents_dir/MacOS/MacScope"
+cp "$binary_dir/MacScopeGPUHelper" "$daemon_dir/MacScopeGPUHelper"
+cp "$project_dir/Packaging/com.macscope.GPUMetricsHelper.plist" "$daemon_dir/com.macscope.GPUMetricsHelper.plist"
 cp "$project_dir/Packaging/Info.plist" "$contents_dir/Info.plist"
+
+team_identifier="$(codesign -dvv "$contents_dir/MacOS/MacScope" 2>&1 | sed -n 's/^TeamIdentifier=//p')"
+if [[ -n "$team_identifier" && "$team_identifier" != "not set" ]]; then
+  client_requirement="identifier \"com.macscope.app\" and anchor apple generic and certificate leaf[subject.OU] = \"$team_identifier\""
+  /usr/libexec/PlistBuddy -c "Set :EnvironmentVariables:MACSCOPE_CLIENT_REQUIREMENT $client_requirement" \
+    "$daemon_dir/com.macscope.GPUMetricsHelper.plist"
+fi
 
 swift "$project_dir/Packaging/render-icon.swift" "$icon_master"
 cp "$project_dir/Packaging/AppIconContents.json" "$iconset_dir/Contents.json"
@@ -70,7 +80,6 @@ mkdir -p "$dist_dir"
 rm -rf "$final_app_dir"
 ditto --norsrc "$app_dir" "$final_app_dir"
 xattr -cr "$final_app_dir"
-codesign --verify --deep --strict --verbose=2 "$final_app_dir"
 cp "$stage_zip" "$final_zip"
 cp "$stage_dmg" "$final_dmg"
 

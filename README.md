@@ -3,7 +3,7 @@
 [![CI](https://github.com/samikciku/MacScope/actions/workflows/ci.yml/badge.svg)](https://github.com/samikciku/MacScope/actions/workflows/ci.yml)
 [![License: GPL v3+](https://img.shields.io/badge/License-GPLv3%2B-blue.svg)](LICENSE)
 
-MacScope is a native SwiftUI macOS resource monitor for macOS 14 and later. It reads memory and CPU statistics through Mach APIs, enumerates processes with `libproc`, discovers GPU devices through Metal, and never fabricates unavailable utilization data. The GPU screen offers public Metal metadata and an explicitly labeled experimental Apple Silicon live-metrics source.
+MacScope is a native SwiftUI macOS resource monitor for macOS 14 and later. It reads memory and CPU statistics through Mach APIs, enumerates processes with `libproc`, discovers GPU devices through Metal, and never fabricates unavailable utilization data. The GPU screen offers public Metal metadata, an explicitly labeled experimental Apple Silicon source, and a Developer ID–gated advanced helper source.
 
 Process views support both individual processes and expandable application aggregates. A dedicated MacScope section exposes the monitor's own memory, CPU, thread count, and bounded history.
 
@@ -101,6 +101,7 @@ Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), [ARCHITECTUR
 ## Current limitations
 
 - Metal does not expose whole-system GPU utilization. On compatible Apple Silicon Macs, the GPU screen can instead use an experimental IORegistry source for device, renderer, and tiler utilization, memory, core count, and history. These undocumented AGX fields may disappear or change after macOS updates; select Metal metadata for the stable public-only mode.
+- Advanced Helper mode uses an optional root LaunchDaemon registered through `SMAppService` and approved by an administrator. Its XPC listener accepts only the Developer ID–signed MacScope client, and its sole operation runs Apple `powermetrics` with fixed GPU-only arguments, a five-second timeout, and a 1 MiB output limit. Ad-hoc test builds intentionally cannot register it.
 - Memory pressure remains unavailable until macOS delivers the first public pressure event; MacScope does not infer a normal state.
 - Swap information can be unavailable when an execution sandbox denies `vm.swapusage`.
 - Launch at login is not implemented.

@@ -21,6 +21,8 @@ struct GPUStats: Equatable, Sendable {
     let allocatedMemoryBytes: UInt64?
     let inUseMemoryBytes: UInt64?
     let coreCount: Int?
+    let powerWatts: Double?
+    let frequencyMHz: Double?
 
     init(
         timestamp: Date,
@@ -31,7 +33,9 @@ struct GPUStats: Equatable, Sendable {
         tilerUtilization: Double? = nil,
         allocatedMemoryBytes: UInt64? = nil,
         inUseMemoryBytes: UInt64? = nil,
-        coreCount: Int? = nil
+        coreCount: Int? = nil,
+        powerWatts: Double? = nil,
+        frequencyMHz: Double? = nil
     ) {
         self.timestamp = timestamp
         self.utilization = utilization
@@ -42,5 +46,7 @@ struct GPUStats: Equatable, Sendable {
         self.allocatedMemoryBytes = allocatedMemoryBytes
         self.inUseMemoryBytes = inUseMemoryBytes
         self.coreCount = coreCount
+        self.powerWatts = powerWatts
+        self.frequencyMHz = frequencyMHz
     }
 }

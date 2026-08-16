@@ -10,8 +10,8 @@
 - Build number: `2`
 - Minimum macOS: 14.0
 - Architecture: Apple Silicon (`arm64`)
-- DMG SHA-256: `f92f3a4e3a63507a0bc07e255777f33ff67825ec19eac3b7ba8189f7776e8c9e`
-- ZIP SHA-256: `e192f63a4ba2e68f9f05e606d3bbb87f37419b832b517efe0462a8d16798397c`
+- DMG SHA-256: `6d81361532a50470f657399756c403511ae3609b112183e6a721b52d4fd3d6fd`
+- ZIP SHA-256: `0975f6eb69cbdefd6cd5227a63bfbbceaad2eff04a7638aa4db1562350d4e3b4`
 
 The DMG was independently verified with `hdiutil verify`. The ZIP was extracted into a temporary directory and its plist, version, architecture, and strict code signature were checked independently. The packaged app also completed a controlled GUI launch and graceful-quit smoke test.
 
@@ -28,6 +28,7 @@ The DMG was independently verified with `hdiutil verify`. The ZIP was extracted 
 - Enable sustained Resource Hog alerts and verify duration/cooldown behavior with a disposable workload.
 - Open Process Details and check signature metadata, redacted launch arguments, and visible network endpoints. Review argument output before sharing it; redaction is best-effort.
 - Open GPU, switch between Metal metadata and Experimental live metrics, and verify utilization, renderer/tiler activity, GPU memory, core count, and history. Confirm the experimental warning remains visible.
+- Select Advanced Helper and confirm this ad-hoc test build reports that Developer ID signing is required; it must not offer privileged installation. Test helper registration only from a Developer ID–signed and notarized build installed in `/Applications`.
 - Verify protected and confirmed **End Task** behavior from Process Details.
 - Exercise Timeline type/severity filters and search.
 - On a MacBook, connect/disconnect AC power, change charging state, and toggle Low Power Mode; verify only actual transitions appear.

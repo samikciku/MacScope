@@ -17,6 +17,11 @@ struct GPUView: View {
                 Task { await viewModel.refresh() }
             }
 
+            if viewModel.source == .privilegedHelper {
+                helperControls
+                    .padding(.horizontal, 24)
+            }
+
             Group {
                 switch viewModel.state {
                 case .loading:
@@ -49,6 +54,8 @@ struct GPUView: View {
                             metricRow("Memory in use", stats.inUseMemoryBytes.map(ByteFormatter.string) ?? "Unavailable")
                             metricRow("Memory allocated", stats.allocatedMemoryBytes.map(ByteFormatter.string) ?? "Unavailable")
                             metricRow("GPU cores", stats.coreCount?.formatted() ?? "Unavailable")
+                            metricRow("GPU power", stats.powerWatts.map { $0.formatted(.number.precision(.fractionLength(2))) + " W" } ?? "Unavailable")
+                            metricRow("GPU frequency", stats.frequencyMHz.map { $0.formatted(.number.precision(.fractionLength(0))) + " MHz" } ?? "Unavailable")
                         }
                         .padding(.top, 6)
                     }
@@ -133,6 +140,38 @@ struct GPUView: View {
         GridRow {
             Text(label)
             Text(value).monospacedDigit()
+        }
+    }
+
+    private var helperControls: some View {
+        GroupBox("Advanced System Helper") {
+            VStack(alignment: .leading, spacing: 8) {
+                LabeledContent("Status", value: viewModel.helperManager.state.title)
+                if case .unavailable(let reason) = viewModel.helperManager.state {
+                    Text(reason).foregroundStyle(.secondary)
+                }
+                if let message = viewModel.helperManager.message {
+                    Text(message).foregroundStyle(.secondary)
+                }
+                HStack {
+                    switch viewModel.helperManager.state {
+                    case .notRegistered:
+                        Button("Install Helper") { viewModel.helperManager.register() }
+                    case .requiresApproval:
+                        Button("Open System Settings") { viewModel.helperManager.openApprovalSettings() }
+                        Button("Refresh Status") { viewModel.helperManager.refresh() }
+                    case .enabled:
+                        Button("Remove Helper", role: .destructive) { viewModel.helperManager.unregister() }
+                    case .notFound:
+                        Button("Refresh Status") { viewModel.helperManager.refresh() }
+                    case .unavailable:
+                        EmptyView()
+                    }
+                }
+                Text("The helper runs only Apple powermetrics with fixed GPU-only arguments. It cannot execute user-provided commands or modify files.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            .padding(.top, 6)
         }
     }
 }

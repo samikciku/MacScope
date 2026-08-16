@@ -3,12 +3,14 @@ import Foundation
 enum GPUDataSource: String, CaseIterable, Identifiable, Sendable {
     case metal
     case experimentalIORegistry
+    case privilegedHelper
 
     var id: Self { self }
     var title: String {
         switch self {
         case .metal: "Metal metadata"
         case .experimentalIORegistry: "Experimental live metrics"
+        case .privilegedHelper: "Advanced helper"
         }
     }
 }
@@ -31,6 +33,7 @@ final class GPUViewModel: ObservableObject {
             state = .loading
         }
     }
+    let helperManager = GPUHelperManager()
     private static let sourceKey = "gpu.dataSource"
     private let defaults: UserDefaults
     private let injectedMonitor: (any GPUMonitorProtocol)?
@@ -49,6 +52,7 @@ final class GPUViewModel: ObservableObject {
                 switch source {
                 case .metal: MetalGPUMonitor()
                 case .experimentalIORegistry: ExperimentalIORegistryGPUMonitor()
+                case .privilegedHelper: PowermetricsGPUMonitor()
                 }
             }()
             let stats = try await monitor.currentStats()
