@@ -6,9 +6,9 @@
 - macOS 14 Sonoma or later
 - Xcode with the macOS SDK when building from source
 
-## Install a release build
+## Install a release build when available
 
-1. Open the repository's **Releases** page on GitHub.
+1. Open the repository's **Releases** page on GitHub and confirm a release has been published.
 2. Download the newest `.dmg` asset.
 3. Open the disk image and copy `MacScope.app` to `/Applications`.
 4. Open MacScope. For an ad-hoc signed test build, Control-click the app, choose **Open**, and confirm once if Gatekeeper asks. Never disable Gatekeeper globally.

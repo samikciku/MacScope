@@ -48,7 +48,7 @@ Dashboard cards and charts navigate directly to their detailed category. Top-pro
 
 ## Install
 
-Download the newest DMG from the repository's GitHub Releases page, open it, and copy `MacScope.app` to `/Applications`. Test releases may be ad-hoc signed rather than notarized; read the release notes and verify the published checksum.
+MacScope can be built and run from source now. When a prebuilt release is published, download the newest DMG from the repository's GitHub Releases page, open it, and copy `MacScope.app` to `/Applications`. Test releases may be ad-hoc signed rather than notarized; read the release notes and verify the published checksum.
 
 Complete installation, Gatekeeper-safe opening, source-build, permissions, packaging, and uninstall instructions are in [INSTALL.md](INSTALL.md).
 
