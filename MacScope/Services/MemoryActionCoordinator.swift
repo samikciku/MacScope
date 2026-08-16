@@ -28,13 +28,18 @@ final class MemoryActionCoordinator: ObservableObject {
     private func measure(
         targetName: String,
         estimate: UInt64,
-        action: () async -> Void
+        action: () async -> ProcessActionResult
     ) async {
         guard !isMeasuring else { return }
         let before = currentStats
         isMeasuring = true
         report = nil
-        await action()
+        let actionResult = await action()
+
+        guard actionResult.outcome == .completed else {
+            isMeasuring = false
+            return
+        }
 
         guard let before else {
             isMeasuring = false

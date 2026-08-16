@@ -8,6 +8,10 @@ struct ProcessesView: View {
     var body: some View {
         VStack(spacing: 0) {
             controls
+            if let result = viewModel.lastActionResult {
+                ProcessActionResultBanner(result: result) { viewModel.clearActionResult() }
+                    .padding(.horizontal, 12).padding(.bottom, 8)
+            }
             Divider()
             content
         }
@@ -16,11 +20,6 @@ struct ProcessesView: View {
         .sheet(item: selectedProcessBinding) { process in
             ProcessDetailView(identity: process.identity, viewModel: viewModel)
                 .frame(minWidth: 560, minHeight: 580)
-        }
-        .alert("Process Action", isPresented: actionMessagePresented) {
-            Button("OK") { viewModel.actionMessage = nil }
-        } message: {
-            Text(viewModel.actionMessage ?? "")
         }
         .alert("End Task?", isPresented: terminationConfirmationPresented, presenting: pendingTermination) { process in
             Button("Cancel", role: .cancel) { pendingTermination = nil }
@@ -59,13 +58,6 @@ struct ProcessesView: View {
                 return viewModel.process(with: selection)
             },
             set: { newValue in viewModel.selection = newValue?.identity }
-        )
-    }
-
-    private var actionMessagePresented: Binding<Bool> {
-        Binding(
-            get: { viewModel.actionMessage != nil },
-            set: { if !$0 { viewModel.actionMessage = nil } }
         )
     }
 

@@ -164,11 +164,6 @@ struct MemoryConsumersView: View {
                 Text("Ask \(group.name) to quit normally? The application can prompt for unsaved work. If macOS cannot identify it, MacScope will take no action.")
             }
         }
-        .alert("Process Action", isPresented: actionMessagePresented) {
-            Button("OK") { processesViewModel.actionMessage = nil }
-        } message: {
-            Text(processesViewModel.actionMessage ?? "")
-        }
     }
 
     private var summary: some View {
@@ -197,6 +192,9 @@ struct MemoryConsumersView: View {
             }
             if let report = actionCoordinator.report {
                 reclaimSummary(report)
+            }
+            if let result = processesViewModel.lastActionResult {
+                ProcessActionResultBanner(result: result) { processesViewModel.clearActionResult() }
             }
             Picker("Display", selection: $presentation) {
                 ForEach(MemoryConsumerPresentation.allCases) { mode in
@@ -406,13 +404,6 @@ struct MemoryConsumersView: View {
 
     private var groupAlertTitle: String {
         pendingGroupTermination?.applicationPath == nil ? "End All Tasks?" : "Quit Application?"
-    }
-
-    private var actionMessagePresented: Binding<Bool> {
-        Binding(
-            get: { processesViewModel.actionMessage != nil },
-            set: { if !$0 { processesViewModel.actionMessage = nil } }
-        )
     }
 
     @ViewBuilder

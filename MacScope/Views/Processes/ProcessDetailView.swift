@@ -68,10 +68,8 @@ struct ProcessDetailView: View {
                 argumentsSection(process)
                 historySection
                 connectionsSection(process)
-                if let message = viewModel.actionMessage {
-                    Label(message, systemImage: "info.circle")
-                        .foregroundStyle(.secondary)
-                        .accessibilityLabel("Process action: \(message)")
+                if let result = viewModel.lastActionResult {
+                    ProcessActionResultBanner(result: result) { viewModel.clearActionResult() }
                 }
                 terminationSection(process)
             }
