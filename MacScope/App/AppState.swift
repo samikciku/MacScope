@@ -14,6 +14,7 @@ final class AppState: ObservableObject {
     let batteryViewModel: BatteryViewModel
     let thermalViewModel: ThermalViewModel
     let alertCenter: AlertCenter
+    let monitoringDiagnostics: MonitoringDiagnostics
     private let alertEvaluator: ResourceAlertEvaluator
     private let resourceHogAlertEvaluator: ResourceHogAlertEvaluator
     private var monitoringCoordinator: MonitoringCoordinator?
@@ -30,6 +31,7 @@ final class AppState: ObservableObject {
         batteryViewModel: BatteryViewModel = BatteryViewModel(),
         thermalViewModel: ThermalViewModel = ThermalViewModel(),
         alertCenter: AlertCenter = AlertCenter(),
+        monitoringDiagnostics: MonitoringDiagnostics = MonitoringDiagnostics(),
         alertEvaluator: ResourceAlertEvaluator = ResourceAlertEvaluator(),
         resourceHogAlertEvaluator: ResourceHogAlertEvaluator = ResourceHogAlertEvaluator()
     ) {
@@ -44,6 +46,7 @@ final class AppState: ObservableObject {
         self.batteryViewModel = batteryViewModel
         self.thermalViewModel = thermalViewModel
         self.alertCenter = alertCenter
+        self.monitoringDiagnostics = monitoringDiagnostics
         self.alertEvaluator = alertEvaluator
         self.resourceHogAlertEvaluator = resourceHogAlertEvaluator
     }
@@ -63,7 +66,8 @@ final class AppState: ObservableObject {
                 settings: settings,
                 alertCenter: alertCenter,
                 alertEvaluator: alertEvaluator,
-                resourceHogAlertEvaluator: resourceHogAlertEvaluator
+                resourceHogAlertEvaluator: resourceHogAlertEvaluator,
+                diagnostics: monitoringDiagnostics
             )
         }
         monitoringCoordinator?.start()

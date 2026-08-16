@@ -13,6 +13,7 @@ MacScope 2 expands the native macOS monitor from core CPU, memory, and process v
 - Public Metal GPU metadata plus an opt-in experimental Apple Silicon live-metrics source. An advanced helper path remains unavailable in ad-hoc builds.
 - Memory-consumer drill-down with conservative application/process classifications, protected termination, pressure guidance, and measured after-action feedback.
 - Dashboard navigation, compact monitor, menu-bar monitor, bounded history, and accessibility summaries.
+- Sleep/wake-aware sampling plus local collector latency and failure diagnostics in MacScope self-monitoring.
 
 ## Memory recommendations
 

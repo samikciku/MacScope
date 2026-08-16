@@ -9,6 +9,8 @@ The primary navigation is organized around seven workflows: Overview, Applicatio
 
 Process views support both individual processes and expandable application aggregates. A dedicated MacScope section exposes the monitor's own memory, CPU, thread count, and bounded history.
 
+The MacScope self-monitoring surface also reports each collector's sample count, last/average/maximum duration, total and consecutive failures, and monitoring lifecycle. Sampling tasks are cancelled before macOS sleep and restarted after wake; diagnostics are aggregate counters rather than an unbounded event log.
+
 Processes also provide a searchable parent/child hierarchy that preserves ancestor context, orphaned processes, and cycle safety without additional monitoring calls.
 
 Every individual process row includes a confirmed **End Task…** action. MacScope sends a normal termination request only after revalidating the process identity, while protecting MacScope itself, PID 1, critical system processes, and root-owned processes.

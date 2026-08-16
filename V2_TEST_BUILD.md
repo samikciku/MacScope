@@ -10,8 +10,8 @@
 - Build number: `2`
 - Minimum macOS: 14.0
 - Architecture: Apple Silicon (`arm64`)
-- DMG SHA-256: `537d0e7cbba55c8b3fd98fb3c1b42233d765339505f485b12bc05ea7911cef44`
-- ZIP SHA-256: `5722df603352535996fb73c4a27f69851a122f6eabebb015996544ec4251bbb6`
+- DMG SHA-256: `6042e544684b8bc1662f7589f10e91762b71a9cad0c0cf8cd04cc3b976283382`
+- ZIP SHA-256: `4f3d6944d504dd33d1fdcdf7b333bbbedade8a3af24ce91dd0bab6fbc4f22cd8`
 
 The DMG was independently verified with `hdiutil verify`. The ZIP was extracted into a temporary directory and its plist, version, architecture, and strict code signature were checked independently. The packaged app also completed a controlled GUI launch and graceful-quit smoke test.
 
@@ -26,6 +26,7 @@ The DMG was independently verified with `hdiutil verify`. The ZIP was extracted 
 
 - Verify the sidebar contains only Overview, Applications, Performance, Disk, Network, Events, and Settings. Confirm the hub tabs expose the former detailed categories and Overview's condition card opens the recommended workflow.
 - From Applications and Memory, verify `.app` groups say **Quit** and can display the application's own unsaved-work prompt. Confirm an unrecognized application produces a no-action message rather than silently falling back to process signals, while command-line groups retain the explicit **End All** path.
+- In Applications → MacScope, verify collector timings and failure states populate. Sleep and wake the Mac, then confirm monitoring resumes, the lifecycle returns to Running, and charts do not show runaway catch-up sampling.
 - Open **Resource Hogs**, adjust each threshold, filter by category, and search by application/user.
 - Enable sustained Resource Hog alerts and verify duration/cooldown behavior with a disposable workload.
 - Open Process Details and check signature metadata, redacted launch arguments, and visible network endpoints. Review argument output before sharing it; redaction is best-effort.

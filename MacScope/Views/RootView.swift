@@ -74,7 +74,10 @@ struct RootView: View {
                 alertCenter: appState.alertCenter
             )
         case .selfMonitoring:
-            SelfMonitoringView(viewModel: appState.processesViewModel)
+            SelfMonitoringView(
+                viewModel: appState.processesViewModel,
+                diagnostics: appState.monitoringDiagnostics
+            )
         case .alerts:
             AlertsView(alertCenter: appState.alertCenter, settings: appState.settings)
         }
@@ -102,7 +105,10 @@ private struct ApplicationsHubView: View {
                     settings: appState.settings,
                     alertCenter: appState.alertCenter
                 )
-            case 2: SelfMonitoringView(viewModel: appState.processesViewModel)
+            case 2: SelfMonitoringView(
+                viewModel: appState.processesViewModel,
+                diagnostics: appState.monitoringDiagnostics
+            )
             default: ProcessesView(viewModel: appState.processesViewModel)
             }
         }
