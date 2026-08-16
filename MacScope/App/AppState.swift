@@ -49,6 +49,10 @@ final class AppState: ObservableObject {
         self.monitoringDiagnostics = monitoringDiagnostics
         self.alertEvaluator = alertEvaluator
         self.resourceHogAlertEvaluator = resourceHogAlertEvaluator
+        gpuViewModel.enforceAllowedSources(
+            experimentalEnabled: settings.experimentalGPUEnabled,
+            helperEnabled: settings.advancedGPUHelperEnabled
+        )
     }
 
     func startMonitoring() {

@@ -3,11 +3,12 @@ import SwiftUI
 
 struct GPUView: View {
     @ObservedObject var viewModel: GPUViewModel
+    @ObservedObject var settings: MonitoringSettings
 
     var body: some View {
         VStack(spacing: 12) {
             Picker("GPU data source", selection: $viewModel.source) {
-                ForEach(GPUDataSource.allCases) { source in
+                ForEach(allowedSources) { source in
                     Text(source.title).tag(source)
                 }
             }
@@ -16,6 +17,8 @@ struct GPUView: View {
             .onChange(of: viewModel.source) { _, _ in
                 Task { await viewModel.refresh() }
             }
+            .onChange(of: settings.experimentalGPUEnabled) { _, _ in enforceAccess() }
+            .onChange(of: settings.advancedGPUHelperEnabled) { _, _ in enforceAccess() }
 
             if viewModel.source == .privilegedHelper {
                 helperControls
@@ -39,6 +42,22 @@ struct GPUView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationTitle("GPU")
+        .onAppear { enforceAccess() }
+    }
+
+    private var allowedSources: [GPUDataSource] {
+        var sources: [GPUDataSource] = [.metal]
+        if settings.experimentalGPUEnabled { sources.append(.experimentalIORegistry) }
+        if settings.experimentalGPUEnabled, settings.advancedGPUHelperEnabled { sources.append(.privilegedHelper) }
+        return sources
+    }
+
+    private func enforceAccess() {
+        viewModel.enforceAllowedSources(
+            experimentalEnabled: settings.experimentalGPUEnabled,
+            helperEnabled: settings.advancedGPUHelperEnabled
+        )
+        Task { await viewModel.refresh() }
     }
 
     private func gpuContent(_ stats: GPUStats) -> some View {

@@ -43,7 +43,14 @@ final class GPUViewModel: ObservableObject {
         self.injectedMonitor = monitor
         self.defaults = defaults
         self.source = defaults.string(forKey: Self.sourceKey)
-            .flatMap(GPUDataSource.init(rawValue:)) ?? .experimentalIORegistry
+            .flatMap(GPUDataSource.init(rawValue:)) ?? .metal
+    }
+
+    func enforceAllowedSources(experimentalEnabled: Bool, helperEnabled: Bool) {
+        let allowed = source == .metal
+            || (source == .experimentalIORegistry && experimentalEnabled)
+            || (source == .privilegedHelper && experimentalEnabled && helperEnabled)
+        if !allowed { source = .metal }
     }
 
     func refresh() async {

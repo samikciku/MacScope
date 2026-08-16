@@ -40,6 +40,16 @@ struct SettingsView: View {
                 Toggle("Show GPU", isOn: $settings.compactShowGPU)
                 Toggle("Show swap", isOn: $settings.compactShowSwap)
             }
+
+            Section("Advanced and Experimental") {
+                Toggle("Enable experimental GPU metrics", isOn: $settings.experimentalGPUEnabled)
+                Text("Uses undocumented Apple Silicon AGX IORegistry fields that can change or disappear after macOS updates. Public Metal remains the default.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                Toggle("Enable advanced GPU helper", isOn: $settings.advancedGPUHelperEnabled)
+                    .disabled(!settings.experimentalGPUEnabled)
+                Text("Exposes the Developer ID–gated helper option. Installation still requires explicit administrator approval and can be removed from the GPU screen.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .navigationTitle("Settings")

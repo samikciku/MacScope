@@ -49,7 +49,7 @@ struct RootView: View {
         case .processes:
             ProcessesView(viewModel: appState.processesViewModel)
         case .gpu:
-            GPUView(viewModel: appState.gpuViewModel)
+            GPUView(viewModel: appState.gpuViewModel, settings: appState.settings)
         case .settings:
             SettingsView(settings: appState.settings)
         case .system:
@@ -134,7 +134,7 @@ private struct PerformanceHubView: View {
             Divider()
             switch tab {
             case 1: CPUView(viewModel: appState.cpuViewModel)
-            case 2: GPUView(viewModel: appState.gpuViewModel)
+            case 2: GPUView(viewModel: appState.gpuViewModel, settings: appState.settings)
             case 3: EnergyView(viewModel: appState.processesViewModel)
             case 4: ThermalView(viewModel: appState.thermalViewModel)
             case 5: BatteryView(viewModel: appState.batteryViewModel)

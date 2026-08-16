@@ -37,6 +37,8 @@ struct SamplingIntervalTests {
         settings.hogNetworkThresholdMBps = 40
         settings.hogPowerThresholdWatts = 15
         settings.hogAlertsEnabled = true
+        settings.experimentalGPUEnabled = true
+        settings.advancedGPUHelperEnabled = true
 
         let restored = MonitoringSettings(defaults: defaults)
         #expect(restored.refreshInterval == .fiveSeconds)
@@ -63,5 +65,20 @@ struct SamplingIntervalTests {
         #expect(restored.hogNetworkThresholdMBps == 40)
         #expect(restored.hogPowerThresholdWatts == 15)
         #expect(restored.hogAlertsEnabled)
+        #expect(restored.experimentalGPUEnabled)
+        #expect(restored.advancedGPUHelperEnabled)
+    }
+
+    @Test @MainActor func experimentalGPUFeaturesAreDisabledByDefaultAndHelperFollowsParentToggle() {
+        let suiteName = "MacScopeTests.GPUSettings.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let settings = MonitoringSettings(defaults: defaults)
+        #expect(!settings.experimentalGPUEnabled)
+        #expect(!settings.advancedGPUHelperEnabled)
+        settings.experimentalGPUEnabled = true
+        settings.advancedGPUHelperEnabled = true
+        settings.experimentalGPUEnabled = false
+        #expect(!settings.advancedGPUHelperEnabled)
     }
 }

@@ -158,19 +158,19 @@ struct DashboardView: View {
             guard case .loaded(let stats) = memoryViewModel.state else { return nil }
             return stats.pressure
         }()
-        let cpu: Double? = {
-            guard case .loaded(let stats) = cpuViewModel.state else { return nil }
-            return stats.totalUsage
+        let memoryTimestamp: Date? = {
+            guard case .loaded(let stats) = memoryViewModel.state else { return nil }
+            return stats.timestamp
         }()
-        let disk: Double? = {
-            guard case .loaded(let stats) = diskViewModel.state else { return nil }
-            return stats.usedFraction
-        }()
+        let diskStats: DiskStats? = { guard case .loaded(let stats) = diskViewModel.state else { return nil }; return stats }()
         return SystemHealthAnalyzer.assess(
             memoryPressure: pressure,
-            cpuUsage: cpu,
-            diskUsedFraction: disk,
+            memoryTimestamp: memoryTimestamp,
+            cpuHistory: cpuViewModel.history,
+            diskUsedFraction: diskStats?.usedFraction,
+            diskTimestamp: diskStats?.timestamp,
             thermalState: thermalViewModel.stats?.state,
+            thermalTimestamp: thermalViewModel.stats?.timestamp,
             topMemoryProcess: topMemoryProcesses.first,
             topCPUProcess: topCPUProcesses.first
         )
@@ -208,6 +208,9 @@ private struct HealthSummaryCard: View {
 
     private var icon: String {
         switch assessment.level {
+        case .collecting: "ellipsis.circle"
+        case .partial: "circle.lefthalf.filled"
+        case .stale: "clock.badge.exclamationmark"
         case .healthy: "checkmark.circle.fill"
         case .elevated: "exclamationmark.triangle.fill"
         case .critical: "exclamationmark.octagon.fill"
@@ -216,6 +219,7 @@ private struct HealthSummaryCard: View {
 
     private var color: Color {
         switch assessment.level {
+        case .collecting, .partial, .stale: .secondary
         case .healthy: .green
         case .elevated: .orange
         case .critical: .red

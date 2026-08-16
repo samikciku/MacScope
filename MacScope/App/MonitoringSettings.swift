@@ -55,6 +55,8 @@ final class MonitoringSettings: ObservableObject {
     private static let hogNetworkThresholdKey = "resourceHogs.networkThresholdMBps"
     private static let hogPowerThresholdKey = "resourceHogs.powerThresholdWatts"
     private static let hogAlertsEnabledKey = "resourceHogs.alertsEnabled"
+    private static let experimentalGPUEnabledKey = "gpu.experimental.enabled"
+    private static let advancedGPUHelperEnabledKey = "gpu.helper.enabled"
 
     private let defaults: UserDefaults
 
@@ -95,6 +97,15 @@ final class MonitoringSettings: ObservableObject {
     @Published var hogNetworkThresholdMBps: Double { didSet { persist(hogNetworkThresholdMBps, key: Self.hogNetworkThresholdKey) } }
     @Published var hogPowerThresholdWatts: Double { didSet { persist(hogPowerThresholdWatts, key: Self.hogPowerThresholdKey) } }
     @Published var hogAlertsEnabled: Bool { didSet { persist(hogAlertsEnabled, key: Self.hogAlertsEnabledKey) } }
+    @Published var experimentalGPUEnabled: Bool {
+        didSet {
+            persist(experimentalGPUEnabled, key: Self.experimentalGPUEnabledKey)
+            if !experimentalGPUEnabled { advancedGPUHelperEnabled = false }
+        }
+    }
+    @Published var advancedGPUHelperEnabled: Bool {
+        didSet { persist(advancedGPUHelperEnabled, key: Self.advancedGPUHelperEnabledKey) }
+    }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -125,6 +136,8 @@ final class MonitoringSettings: ObservableObject {
         hogNetworkThresholdMBps = Self.storedDouble(defaults, key: Self.hogNetworkThresholdKey, fallback: 50)
         hogPowerThresholdWatts = Self.storedDouble(defaults, key: Self.hogPowerThresholdKey, fallback: 20)
         hogAlertsEnabled = defaults.bool(forKey: Self.hogAlertsEnabledKey)
+        experimentalGPUEnabled = defaults.bool(forKey: Self.experimentalGPUEnabledKey)
+        advancedGPUHelperEnabled = defaults.bool(forKey: Self.advancedGPUHelperEnabledKey)
     }
 
     var processRefreshDuration: Duration {
