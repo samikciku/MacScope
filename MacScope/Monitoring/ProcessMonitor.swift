@@ -13,6 +13,15 @@ enum ProcessMonitorError: Error, Equatable, LocalizedError, Sendable {
 }
 
 actor ProcessMonitor: ProcessMonitorProtocol {
+    private struct ArchitectureInfo {
+        var cpuType: cpu_type_t = 0
+        var cpuSubtype: cpu_subtype_t = 0
+    }
+
+    // PROC_PIDARCHINFO is available at runtime on supported macOS releases, but
+    // older Swift SDK overlays do not import its C struct or flavor constant.
+    private static let processArchitectureInfoFlavor: Int32 = 19
+
     private struct PreviousSample: Sendable {
         let cpuNanoseconds: UInt64
         let timestamp: Date
@@ -174,13 +183,13 @@ actor ProcessMonitor: ProcessMonitorProtocol {
     }
 
     private func readArchitecture(pid: pid_t) -> String? {
-        var info = proc_archinfo()
-        let size = MemoryLayout<proc_archinfo>.size
+        var info = ArchitectureInfo()
+        let size = MemoryLayout<ArchitectureInfo>.size
         let bytesRead = withUnsafeMutablePointer(to: &info) {
-            proc_pidinfo(pid, PROC_PIDARCHINFO, 0, $0, Int32(size))
+            proc_pidinfo(pid, Self.processArchitectureInfoFlavor, 0, $0, Int32(size))
         }
         guard bytesRead == size else { return nil }
-        return ProcessMetadataResolver.architectureName(cpuType: info.p_cputype)
+        return ProcessMetadataResolver.architectureName(cpuType: info.cpuType)
     }
 
     private func readName(pid: pid_t) -> String? {
