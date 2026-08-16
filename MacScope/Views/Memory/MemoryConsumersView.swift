@@ -18,6 +18,14 @@ enum MemoryConsumerQuery {
     }
 }
 
+private enum MemoryConsumerFilter: String, CaseIterable, Identifiable {
+    case all = "All"
+    case suggestions = "Suggestions"
+    case active = "Active"
+    case protected = "Protected"
+    var id: Self { self }
+}
+
 struct MemoryConsumersView: View {
     let systemUsedBytes: UInt64
     @ObservedObject var processesViewModel: ProcessesViewModel
@@ -25,10 +33,18 @@ struct MemoryConsumersView: View {
     @State private var searchText = ""
     @State private var selectedIdentity: ProcessSnapshot.Identity?
     @State private var pendingTermination: ProcessSnapshot?
+    @State private var filter: MemoryConsumerFilter = .all
 
     private var consumers: [ProcessSnapshot] {
         guard case .loaded(let snapshots) = processesViewModel.state else { return [] }
-        return MemoryConsumerQuery.apply(to: snapshots, searchText: searchText)
+        return MemoryConsumerQuery.apply(to: snapshots, searchText: searchText).filter { process in
+            switch filter {
+            case .all: true
+            case .suggestions: assessment(for: process).classification == .lowerImpact
+            case .active: assessment(for: process).classification == .active
+            case .protected: assessment(for: process).classification == .protected
+            }
+        }
     }
 
     private var attributedBytes: UInt64 {
@@ -36,6 +52,14 @@ struct MemoryConsumersView: View {
             partial.addingReportingOverflow(process.residentBytes).overflow
                 ? UInt64.max
                 : partial + process.residentBytes
+        }
+    }
+
+    private var suggestedBytes: UInt64 {
+        consumers.reduce(0) { partial, process in
+            guard assessment(for: process).classification == .lowerImpact else { return partial }
+            let result = partial.addingReportingOverflow(process.residentBytes)
+            return result.overflow ? UInt64.max : result.partialValue
         }
     }
 
@@ -84,6 +108,17 @@ struct MemoryConsumersView: View {
                 Spacer()
                 Text(ByteFormatter.string(fromByteCount: attributedBytes)).monospacedDigit()
             }
+            HStack {
+                Text("Lower-impact candidates shown")
+                Spacer()
+                Text(ByteFormatter.string(fromByteCount: suggestedBytes)).monospacedDigit()
+            }
+            Picker("Classification", selection: $filter) {
+                ForEach(MemoryConsumerFilter.allCases) { filter in
+                    Text(filter.rawValue).tag(filter)
+                }
+            }
+            .pickerStyle(.segmented)
             Text("Process totals do not equal system used memory because macOS also uses RAM for the kernel, wired/compressed memory, shared pages, and caches. Ending a task can lose unsaved work.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -139,6 +174,15 @@ struct MemoryConsumersView: View {
                     }
                     .width(min: 100, ideal: 130)
 
+                    TableColumn("Assessment") { process in
+                        let assessment = assessment(for: process)
+                        Label(assessment.classification.rawValue, systemImage: assessment.classification.systemImage)
+                            .lineLimit(1)
+                            .help(assessment.reason)
+                            .accessibilityLabel("\(assessment.classification.rawValue). \(assessment.reason)")
+                    }
+                    .width(min: 145, ideal: 180)
+
                     TableColumn("End Task") { process in
                         terminationButton(process)
                     }
@@ -147,6 +191,14 @@ struct MemoryConsumersView: View {
                 .accessibilityLabel("Processes sorted by memory usage")
             }
         }
+    }
+
+    private func assessment(for process: ProcessSnapshot) -> MemoryReclaimAssessment {
+        MemoryReclaimClassifier.assess(
+            process,
+            history: processesViewModel.history(for: process.identity),
+            terminationDecision: processesViewModel.terminationDecision(for: process)
+        )
     }
 
     private var selectedProcess: Binding<ProcessSnapshot?> {
