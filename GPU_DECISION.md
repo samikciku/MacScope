@@ -2,9 +2,11 @@
 
 ## V1 decision
 
-MacScope uses the public Metal API to discover GPU devices and their supported static properties. It does not report a system utilization percentage because no reliable public API compatible with the current distribution-neutral design was established.
+MacScope uses the public Metal API to discover GPU devices and their supported static properties. Metal mode does not report a system utilization percentage because no reliable public API compatible with the current distribution-neutral design was established.
 
-The UI represents utilization as `unsupported`; it never substitutes zero or an invented percentage.
+V2 also offers an explicitly labeled experimental IORegistry mode on compatible Apple Silicon Macs. It reads the AGX driver's published `PerformanceStatistics` fields for device, renderer, and tiler utilization plus memory and core-count information. This requires no administrator access, but the field names are undocumented and can change between macOS releases. Users can switch back to public-only Metal metadata at any time.
+
+The UI represents utilization as `unsupported` in Metal mode and as unavailable when the experimental fields are absent; it never substitutes zero or an invented percentage.
 
 ## Why Metal counters are insufficient
 

@@ -10,8 +10,8 @@
 - Build number: `2`
 - Minimum macOS: 14.0
 - Architecture: Apple Silicon (`arm64`)
-- DMG SHA-256: `11d695e078bf6bc753cbe17cf86ac1b36e6eda7e77101973cac0eba8e76a8a43`
-- ZIP SHA-256: `5e7621b74aa4a25c7ba287353e31fd6965a18c608afed882773c42f60e1d308a`
+- DMG SHA-256: `30c291ceb597306b974a830ca828f7d0735764a5824e21f487ec11b6c26b156d`
+- ZIP SHA-256: `83836cd5b4a783e0972f3640d87948db1562d6115501cb18b9677cf652d1792e`
 
 The DMG was independently verified with `hdiutil verify`. The ZIP was extracted into a temporary directory and its plist, version, architecture, and strict code signature were checked independently. The packaged app also completed a controlled GUI launch and graceful-quit smoke test.
 
@@ -27,6 +27,7 @@ The DMG was independently verified with `hdiutil verify`. The ZIP was extracted 
 - Open **Resource Hogs**, adjust each threshold, filter by category, and search by application/user.
 - Enable sustained Resource Hog alerts and verify duration/cooldown behavior with a disposable workload.
 - Open Process Details and check signature metadata, redacted launch arguments, and visible network endpoints. Review argument output before sharing it; redaction is best-effort.
+- Open GPU, switch between Metal metadata and Experimental live metrics, and verify utilization, renderer/tiler activity, GPU memory, core count, and history. Confirm the experimental warning remains visible.
 - Verify protected and confirmed **End Task** behavior from Process Details.
 - Exercise Timeline type/severity filters and search.
 - On a MacBook, connect/disconnect AC power, change charging state, and toggle Low Power Mode; verify only actual transitions appear.

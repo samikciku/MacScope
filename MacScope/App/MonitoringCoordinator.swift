@@ -84,8 +84,11 @@ final class MonitoringCoordinator {
             }
         }
         gpuTask = Task { [weak self] in
-            guard let self, !Task.isCancelled else { return }
-            await gpuViewModel.refresh()
+            while let self, !Task.isCancelled {
+                await gpuViewModel.refresh()
+                let seconds = Swift.max(2, settings.refreshInterval.rawValue)
+                guard await sleep(for: .milliseconds(Int(seconds * 1_000))) else { return }
+            }
         }
         systemTask = Task { [weak self] in
             guard let self, !Task.isCancelled else { return }

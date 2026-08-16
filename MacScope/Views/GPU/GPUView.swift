@@ -5,19 +5,33 @@ struct GPUView: View {
     @ObservedObject var viewModel: GPUViewModel
 
     var body: some View {
-        Group {
-            switch viewModel.state {
-            case .loading:
-                ProgressView("Discovering GPU devices…")
-            case .failed(let message):
-                ContentUnavailableView(
-                    "GPU Information Unavailable",
-                    systemImage: "display.trianglebadge.exclamationmark",
-                    description: Text(message)
-                )
-            case .loaded(let stats):
-                gpuContent(stats)
+        VStack(spacing: 12) {
+            Picker("GPU data source", selection: $viewModel.source) {
+                ForEach(GPUDataSource.allCases) { source in
+                    Text(source.title).tag(source)
+                }
             }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 24)
+            .onChange(of: viewModel.source) { _, _ in
+                Task { await viewModel.refresh() }
+            }
+
+            Group {
+                switch viewModel.state {
+                case .loading:
+                    ProgressView("Discovering GPU devices…")
+                case .failed(let message):
+                    ContentUnavailableView(
+                        "GPU Information Unavailable",
+                        systemImage: "display.trianglebadge.exclamationmark",
+                        description: Text(message)
+                    )
+                case .loaded(let stats):
+                    gpuContent(stats)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationTitle("GPU")
     }
@@ -26,6 +40,19 @@ struct GPUView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 utilizationStatus(stats.utilization)
+
+                if stats.rendererUtilization != nil || stats.tilerUtilization != nil || stats.inUseMemoryBytes != nil {
+                    GroupBox("Live GPU details") {
+                        Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 8) {
+                            metricRow("Renderer", stats.rendererUtilization?.formatted(.percent.precision(.fractionLength(1))) ?? "Unavailable")
+                            metricRow("Tiler", stats.tilerUtilization?.formatted(.percent.precision(.fractionLength(1))) ?? "Unavailable")
+                            metricRow("Memory in use", stats.inUseMemoryBytes.map(ByteFormatter.string) ?? "Unavailable")
+                            metricRow("Memory allocated", stats.allocatedMemoryBytes.map(ByteFormatter.string) ?? "Unavailable")
+                            metricRow("GPU cores", stats.coreCount?.formatted() ?? "Unavailable")
+                        }
+                        .padding(.top, 6)
+                    }
+                }
 
                 if stats.devices.isEmpty {
                     ContentUnavailableView(
@@ -99,6 +126,13 @@ struct GPUView: View {
         GridRow {
             Text(label)
             Text(value ? "Yes" : "No")
+        }
+    }
+
+    private func metricRow(_ label: String, _ value: String) -> some View {
+        GridRow {
+            Text(label)
+            Text(value).monospacedDigit()
         }
     }
 }
