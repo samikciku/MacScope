@@ -3,10 +3,31 @@ import Foundation
 enum MonitorCollector: String, CaseIterable, Identifiable, Sendable {
     case memory, cpu, processes, gpu, system, disk, network, battery, thermal
     var id: Self { self }
-    var title: String { rawValue.capitalized }
+    var title: String {
+        switch self {
+        case .cpu: "CPU"
+        case .gpu: "GPU"
+        default: rawValue.capitalized
+        }
+    }
 }
 
 struct CollectorDiagnostic: Equatable, Identifiable, Sendable {
+    enum Status: Equatable, Sendable {
+        case collecting
+        case healthy
+        case failing(count: Int)
+        case stale
+
+        var title: String {
+            switch self {
+            case .collecting: "Collecting"
+            case .healthy: "Healthy"
+            case .failing(let count): "Failing (\(count))"
+            case .stale: "Stale"
+            }
+        }
+    }
     let collector: MonitorCollector
     var id: MonitorCollector { collector }
     private(set) var sampleCount = 0
@@ -32,6 +53,12 @@ struct CollectorDiagnostic: Equatable, Identifiable, Sendable {
             consecutiveFailures += 1
             lastFailure = date
         }
+    }
+
+    func status(at date: Date, staleAfter: TimeInterval = 65) -> Status {
+        if consecutiveFailures > 0 { return .failing(count: consecutiveFailures) }
+        guard let lastSuccess else { return .collecting }
+        return date.timeIntervalSince(lastSuccess) > staleAfter ? .stale : .healthy
     }
 }
 

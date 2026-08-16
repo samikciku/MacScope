@@ -1,8 +1,13 @@
+import AppKit
 import SwiftUI
 
 struct SettingsView: View {
     @Environment(\.openWindow) private var openWindow
     @ObservedObject var settings: MonitoringSettings
+    @ObservedObject var diagnostics: MonitoringDiagnostics
+    @ObservedObject var systemViewModel: SystemViewModel
+    @ObservedObject var gpuViewModel: GPUViewModel
+    @State private var reportCopied = false
 
     var body: some View {
         Form {
@@ -50,6 +55,27 @@ struct SettingsView: View {
                 Text("Exposes the Developer ID–gated helper option. Installation still requires explicit administrator approval and can be removed from the GPU screen.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
+
+            Section("Diagnostics") {
+                LabeledContent("Monitoring", value: diagnostics.lifecycleState.rawValue)
+                if let wake = diagnostics.lastWakeDate {
+                    LabeledContent("Last start or wake") {
+                        Text(wake, format: .dateTime.year().month().day().hour().minute().second())
+                    }
+                }
+                if diagnostics.orderedCollectors.isEmpty {
+                    Text("Collecting the first samples…").foregroundStyle(.secondary)
+                } else {
+                    ForEach(diagnostics.orderedCollectors) { item in collectorRow(item) }
+                }
+                Button(reportCopied ? "Diagnostics Copied" : "Copy Sanitized Diagnostics") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(diagnosticReport, forType: .string)
+                    reportCopied = true
+                }
+                Text("The report excludes process names, users, arguments, file paths, and network endpoints.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .navigationTitle("Settings")
@@ -58,5 +84,46 @@ struct SettingsView: View {
     private var processIntervalDescription: String {
         let seconds = Swift.max(2, settings.refreshInterval.rawValue)
         return "\(Int(seconds)) seconds"
+    }
+
+    private var systemInfo: SystemInfo? {
+        if case .loaded(let info) = systemViewModel.state { return info }
+        return nil
+    }
+
+    private var diagnosticReport: String {
+        DiagnosticReport.make(from: .init(
+            appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "development",
+            appBuild: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "development",
+            systemInfo: systemInfo,
+            gpuSource: gpuViewModel.source,
+            lifecycle: diagnostics.lifecycleState,
+            collectors: diagnostics.orderedCollectors
+        ))
+    }
+
+    private func collectorRow(_ item: CollectorDiagnostic) -> some View {
+        let status = item.status(at: Date())
+        return HStack {
+            Text(item.collector.title)
+            Spacer()
+            Text("\(item.sampleCount) samples · avg \(duration(item.averageDuration))")
+                .foregroundStyle(.secondary).monospacedDigit()
+            Text(status.title).foregroundStyle(statusColor(status))
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func duration(_ seconds: TimeInterval) -> String {
+        seconds < 1 ? "\(Int(seconds * 1_000)) ms" : seconds.formatted(.number.precision(.fractionLength(2))) + " s"
+    }
+
+    private func statusColor(_ status: CollectorDiagnostic.Status) -> Color {
+        switch status {
+        case .healthy: .green
+        case .collecting: .secondary
+        case .stale: .orange
+        case .failing: .red
+        }
     }
 }

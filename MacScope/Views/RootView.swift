@@ -31,7 +31,7 @@ struct RootView: View {
                 batteryViewModel: appState.batteryViewModel,
                 thermalViewModel: appState.thermalViewModel,
                 alertCenter: appState.alertCenter,
-                onNavigate: { appState.selection = $0 }
+                onNavigate: { appState.navigate(to: $0) }
             )
         case .applications:
             ApplicationsHubView(appState: appState)
@@ -51,7 +51,12 @@ struct RootView: View {
         case .gpu:
             GPUView(viewModel: appState.gpuViewModel, settings: appState.settings)
         case .settings:
-            SettingsView(settings: appState.settings)
+            SettingsView(
+                settings: appState.settings,
+                diagnostics: appState.monitoringDiagnostics,
+                systemViewModel: appState.systemViewModel,
+                gpuViewModel: appState.gpuViewModel
+            )
         case .system:
             SystemView(viewModel: appState.systemViewModel)
         case .disk:
@@ -74,10 +79,7 @@ struct RootView: View {
                 alertCenter: appState.alertCenter
             )
         case .selfMonitoring:
-            SelfMonitoringView(
-                viewModel: appState.processesViewModel,
-                diagnostics: appState.monitoringDiagnostics
-            )
+            SelfMonitoringView(viewModel: appState.processesViewModel)
         case .alerts:
             AlertsView(alertCenter: appState.alertCenter, settings: appState.settings)
         }
@@ -86,30 +88,24 @@ struct RootView: View {
 
 private struct ApplicationsHubView: View {
     @ObservedObject var appState: AppState
-    @State private var tab = 0
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Applications view", selection: $tab) {
-                Text("Running").tag(0)
-                Text("Resource Hogs").tag(1)
-                Text("MacScope").tag(2)
+            Picker("Applications view", selection: $appState.applicationsTab) {
+                ForEach(ApplicationsTab.allCases) { tab in Text(tab.rawValue).tag(tab) }
             }
             .pickerStyle(.segmented).frame(maxWidth: 430).padding(12)
             Divider()
-            switch tab {
-            case 1:
+            switch appState.applicationsTab {
+            case .resourceHogs:
                 ResourceHogsView(
                     processesViewModel: appState.processesViewModel,
                     networkViewModel: appState.networkViewModel,
                     settings: appState.settings,
                     alertCenter: appState.alertCenter
                 )
-            case 2: SelfMonitoringView(
-                viewModel: appState.processesViewModel,
-                diagnostics: appState.monitoringDiagnostics
-            )
-            default: ProcessesView(viewModel: appState.processesViewModel)
+            case .macScope: SelfMonitoringView(viewModel: appState.processesViewModel)
+            case .running: ProcessesView(viewModel: appState.processesViewModel)
             }
         }
         .navigationTitle("Applications")
@@ -118,27 +114,21 @@ private struct ApplicationsHubView: View {
 
 private struct PerformanceHubView: View {
     @ObservedObject var appState: AppState
-    @State private var tab = 0
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Performance metric", selection: $tab) {
-                Text("Memory").tag(0)
-                Text("CPU").tag(1)
-                Text("GPU").tag(2)
-                Text("Energy").tag(3)
-                Text("Thermal").tag(4)
-                Text("Battery").tag(5)
+            Picker("Performance metric", selection: $appState.performanceTab) {
+                ForEach(PerformanceTab.allCases) { tab in Text(tab.rawValue).tag(tab) }
             }
             .pickerStyle(.segmented).frame(maxWidth: 650).padding(12)
             Divider()
-            switch tab {
-            case 1: CPUView(viewModel: appState.cpuViewModel)
-            case 2: GPUView(viewModel: appState.gpuViewModel, settings: appState.settings)
-            case 3: EnergyView(viewModel: appState.processesViewModel)
-            case 4: ThermalView(viewModel: appState.thermalViewModel)
-            case 5: BatteryView(viewModel: appState.batteryViewModel)
-            default: MemoryView(viewModel: appState.memoryViewModel, processesViewModel: appState.processesViewModel)
+            switch appState.performanceTab {
+            case .cpu: CPUView(viewModel: appState.cpuViewModel)
+            case .gpu: GPUView(viewModel: appState.gpuViewModel, settings: appState.settings)
+            case .energy: EnergyView(viewModel: appState.processesViewModel)
+            case .thermal: ThermalView(viewModel: appState.thermalViewModel)
+            case .battery: BatteryView(viewModel: appState.batteryViewModel)
+            case .memory: MemoryView(viewModel: appState.memoryViewModel, processesViewModel: appState.processesViewModel)
             }
         }
         .navigationTitle("Performance")
@@ -147,17 +137,15 @@ private struct PerformanceHubView: View {
 
 private struct EventsHubView: View {
     @ObservedObject var appState: AppState
-    @State private var tab = 0
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Events view", selection: $tab) {
-                Text("Timeline").tag(0)
-                Text("Alert Rules").tag(1)
+            Picker("Events view", selection: $appState.eventsTab) {
+                ForEach(EventsTab.allCases) { tab in Text(tab.rawValue).tag(tab) }
             }
             .pickerStyle(.segmented).frame(maxWidth: 320).padding(12)
             Divider()
-            if tab == 0 {
+            if appState.eventsTab == .timeline {
                 SystemEventTimelineView(alertCenter: appState.alertCenter)
             } else {
                 AlertsView(alertCenter: appState.alertCenter, settings: appState.settings)

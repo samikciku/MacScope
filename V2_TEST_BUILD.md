@@ -10,8 +10,8 @@
 - Build number: `2`
 - Minimum macOS: 14.0
 - Architecture: Apple Silicon (`arm64`)
-- DMG SHA-256: `6042e544684b8bc1662f7589f10e91762b71a9cad0c0cf8cd04cc3b976283382`
-- ZIP SHA-256: `4f3d6944d504dd33d1fdcdf7b333bbbedade8a3af24ce91dd0bab6fbc4f22cd8`
+- DMG SHA-256: `c97c0236383ac6738d752da59d9a4282a547f765f3663257945b1e1da493857f`
+- ZIP SHA-256: `b918ef7076d24bbc9b0e14b2a874dcc25521b87456f204ca01a37480775c6959`
 
 The DMG was independently verified with `hdiutil verify`. The ZIP was extracted into a temporary directory and its plist, version, architecture, and strict code signature were checked independently. The packaged app also completed a controlled GUI launch and graceful-quit smoke test.
 
@@ -24,9 +24,10 @@ The DMG was independently verified with `hdiutil verify`. The ZIP was extracted 
 
 ## V2 test focus
 
-- Verify the sidebar contains only Overview, Applications, Performance, Disk, Network, Events, and Settings. Confirm the hub tabs expose the former detailed categories and Overview's condition card opens the recommended workflow.
+- Verify the sidebar contains only Overview, Applications, Performance, Storage, Network, Events, and Settings. Confirm each Overview card opens the visible parent workflow with the correct detail tab selected.
 - From Applications and Memory, verify `.app` groups say **Quit** and can display the application's own unsaved-work prompt. Confirm an unrecognized application produces a no-action message rather than silently falling back to process signals, while command-line groups retain the explicit **End All** path.
-- In Applications → MacScope, verify collector timings and failure states populate. Sleep and wake the Mac, then confirm monitoring resumes, the lifecycle returns to Running, and charts do not show runaway catch-up sampling.
+- In Applications → MacScope, verify MacScope's own footprint and history populate. In Settings → Diagnostics, verify collector timings/status populate and the copied report contains no process names, usernames, arguments, file paths, or endpoints.
+- Sleep and wake the Mac, then confirm monitoring resumes, lifecycle returns to Running, and the first post-wake CPU, paging, disk, process, and network rates do not include time spent asleep.
 - Open **Resource Hogs**, adjust each threshold, filter by category, and search by application/user.
 - Enable sustained Resource Hog alerts and verify duration/cooldown behavior with a disposable workload.
 - Open Process Details and check signature metadata, redacted launch arguments, and visible network endpoints. Review argument output before sharing it; redaction is best-effort.
@@ -36,7 +37,7 @@ The DMG was independently verified with `hdiutil verify`. The ZIP was extracted 
 - Exercise Timeline type/severity filters and search.
 - On a MacBook, connect/disconnect AC power, change charging state, and toggle Low Power Mode; verify only actual transitions appear.
 - Use VoiceOver on Timeline, Resource Hogs, launch arguments, and open connections; confirm state is understandable without relying on color.
-- Recheck Dashboard navigation, Disk analysis/Trash, Network attribution, Energy, alerts, compact mode, and menu-bar mode.
+- Recheck Overview navigation, Storage analysis/Trash, Network attribution, Energy, alerts, compact mode, and menu-bar mode.
 - Leave MacScope running for at least 30 minutes and note responsiveness, CPU use, memory growth, and unavailable fields.
 - In Memory, click **Used**, switch between Applications and Processes and among the classification filters, and confirm lower-impact suggestions appear only after enough recent history is collected. Expand a multi-process app such as Firefox, hover group/member assessments for their reasons, and verify both individual and group termination require confirmation and warn about unsaved work.
 - After ending a disposable task from Memory, wait for the measurement report. Confirm estimated resident memory is kept separate from measured Available and Free/Purgeable changes, and that the explanation remains sensible when macOS retains released pages as reusable cache.

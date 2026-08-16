@@ -9,7 +9,7 @@ The primary navigation is organized around seven workflows: Overview, Applicatio
 
 Process views support both individual processes and expandable application aggregates. A dedicated MacScope section exposes the monitor's own memory, CPU, thread count, and bounded history.
 
-The MacScope self-monitoring surface also reports each collector's sample count, last/average/maximum duration, total and consecutive failures, and monitoring lifecycle. Sampling tasks are cancelled before macOS sleep and restarted after wake; diagnostics are aggregate counters rather than an unbounded event log.
+Settings includes collector sample counts, latency, failures, lifecycle, and explicit Collecting, Healthy, Failing, or Stale status. A copy button produces a sanitized support report without process names, users, command arguments, file paths, or network endpoints. Sampling tasks are cancelled before macOS sleep, rate baselines are reset, and stale task generations are discarded after wake.
 
 Processes also provide a searchable parent/child hierarchy that preserves ancestor context, orphaned processes, and cycle safety without additional monitoring calls.
 
@@ -23,9 +23,9 @@ Configurable sustained CPU and swap alerts provide cooldown and hysteresis, a bo
 
 The Memory screen includes purgeable memory, cumulative page-ins/page-outs, bounded per-second activity history, and pressure-specific guidance for Normal, Warning, Critical, or Awaiting Data states. Clicking **Used** opens a largest-first memory drill-down that switches between expandable application groups and individual processes, with PID, user, resident memory, protected task controls, search, and Process Details. A conservative assessment classifies entries as **Lower-impact candidate**, **Review manually**, **Active**, or **Protected** using process ownership, the termination safety policy, recent CPU history, known disk activity, and resident size. An application group is suggested only when every terminable member qualifies. Group actions ask ordinary `.app` applications to quit through macOS so they can prompt for unsaved work; if macOS cannot identify the application, MacScope takes no action instead of silently sending signals. Individual-process actions remain explicitly advanced and confirmed. After an action, a dedicated coordinator waits briefly and reports estimated resident memory separately from measured changes in available, free, and purgeable memory. It distinguishes visible process resident totals from system-used memory, which also includes kernel, wired/compressed, shared, and cached pages.
 
-The Disk screen reports public startup-volume capacity values plus bounded aggregate block-device read/write history from documented IOKit storage counters. Throughput is labeled as a system aggregate and is not presented as per-volume or per-process usage.
+The Storage screen reports public startup-volume capacity values plus bounded aggregate block-device read/write history from documented IOKit storage counters. Throughput is labeled as a system aggregate and is not presented as per-volume or per-process usage.
 
-Disk also includes an explicit folder-based storage analyzer. It calculates recursive sizes for the selected folder's immediate files and subfolders, sorts them largest-first, filters by files or folders, and moves confirmed items to macOS Trash rather than permanently deleting them.
+Storage also includes an explicit folder-based analyzer. It calculates recursive sizes for the selected folder's immediate files and subfolders, sorts them largest-first, filters by files or folders, and moves confirmed items to macOS Trash rather than permanently deleting them.
 
 The Network screen reports active non-loopback interface totals and bounded aggregate transfer rates using public link-layer counters. It also uses macOS `nettop` snapshots to rank per-process downloads/uploads and offers the same protected, confirmed End Task action. It does not inspect packet contents or remote hosts.
 

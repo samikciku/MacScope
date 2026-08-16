@@ -13,7 +13,10 @@ MacScope 2 expands the native macOS monitor from core CPU, memory, and process v
 - Public Metal GPU metadata plus an opt-in experimental Apple Silicon live-metrics source. An advanced helper path remains unavailable in ad-hoc builds.
 - Memory-consumer drill-down with conservative application/process classifications, protected termination, pressure guidance, and measured after-action feedback.
 - Dashboard navigation, compact monitor, menu-bar monitor, bounded history, and accessibility summaries.
-- Sleep/wake-aware sampling plus local collector latency and failure diagnostics in MacScope self-monitoring.
+- Wake-safe sampling with generation invalidation, monotonic duration measurement, and reset rate baselines.
+- Collector freshness and failure diagnostics in Settings, plus a privacy-sanitized support report.
+- Typed workflow routing so Overview links select the visible parent and correct detail tab.
+- Verified inline outcomes for process and application quit actions, including still-running and cancelled states.
 
 ## Memory recommendations
 
@@ -23,7 +26,7 @@ After confirmed termination, the app reports estimated resident memory separatel
 
 ## Distribution status
 
-The current `2.0.0-test` artifacts are for local testing. They are ad-hoc signed and not notarized. A public release still requires Developer ID signing, Hardened Runtime validation, Apple notarization and stapling, clean-Mac verification, and broader hardware/accessibility testing.
+The current `2.0.0-test` artifacts are a beta-quality local test build. They are ad-hoc signed and not notarized. A public release still requires Developer ID signing, Hardened Runtime validation, Apple notarization and stapling, clean-Mac verification, and broader hardware/accessibility testing. Passing repository tests is not a substitute for those external gates.
 
 ## Known limitations
 

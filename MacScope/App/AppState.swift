@@ -3,6 +3,9 @@ import Foundation
 @MainActor
 final class AppState: ObservableObject {
     @Published var selection: AppSection? = .dashboard
+    @Published var applicationsTab: ApplicationsTab = .running
+    @Published var performanceTab: PerformanceTab = .memory
+    @Published var eventsTab: EventsTab = .timeline
     let memoryViewModel: MemoryViewModel
     let cpuViewModel: CPUViewModel
     let processesViewModel: ProcessesViewModel
@@ -89,6 +92,68 @@ final class AppState: ObservableObject {
         async let thermal: Void = thermalViewModel.refresh()
         _ = await (memory, cpu, processes, gpu, system, disk, network, battery, thermal)
     }
+
+    func navigate(to section: AppSection) {
+        let route = AppRoute.resolve(section)
+        selection = route.parent
+        switch route.subsection {
+        case .applications(let tab): applicationsTab = tab
+        case .performance(let tab): performanceTab = tab
+        case .events(let tab): eventsTab = tab
+        case nil: break
+        }
+    }
+}
+
+enum ApplicationsTab: String, CaseIterable, Identifiable, Sendable {
+    case running = "Running"
+    case resourceHogs = "Resource Hogs"
+    case macScope = "MacScope"
+    var id: Self { self }
+}
+
+enum PerformanceTab: String, CaseIterable, Identifiable, Sendable {
+    case memory = "Memory"
+    case cpu = "CPU"
+    case gpu = "GPU"
+    case energy = "Energy"
+    case thermal = "Thermal"
+    case battery = "Battery"
+    var id: Self { self }
+}
+
+enum EventsTab: String, CaseIterable, Identifiable, Sendable {
+    case timeline = "Timeline"
+    case alertRules = "Alert Rules"
+    var id: Self { self }
+}
+
+enum AppSubsection: Equatable, Sendable {
+    case applications(ApplicationsTab)
+    case performance(PerformanceTab)
+    case events(EventsTab)
+}
+
+struct AppRoute: Equatable, Sendable {
+    let parent: AppSection
+    let subsection: AppSubsection?
+
+    static func resolve(_ section: AppSection) -> AppRoute {
+        switch section {
+        case .processes: .init(parent: .applications, subsection: .applications(.running))
+        case .resourceHogs: .init(parent: .applications, subsection: .applications(.resourceHogs))
+        case .selfMonitoring: .init(parent: .applications, subsection: .applications(.macScope))
+        case .memory: .init(parent: .performance, subsection: .performance(.memory))
+        case .cpu: .init(parent: .performance, subsection: .performance(.cpu))
+        case .gpu: .init(parent: .performance, subsection: .performance(.gpu))
+        case .energy: .init(parent: .performance, subsection: .performance(.energy))
+        case .thermal: .init(parent: .performance, subsection: .performance(.thermal))
+        case .battery: .init(parent: .performance, subsection: .performance(.battery))
+        case .timeline: .init(parent: .events, subsection: .events(.timeline))
+        case .alerts: .init(parent: .events, subsection: .events(.alertRules))
+        default: .init(parent: section, subsection: nil)
+        }
+    }
 }
 
 enum AppSection: String, CaseIterable, Identifiable, Sendable {
@@ -125,7 +190,7 @@ enum AppSection: String, CaseIterable, Identifiable, Sendable {
         case .cpu: "CPU"
         case .gpu: "GPU"
         case .system: "System"
-        case .disk: "Disk"
+        case .disk: "Storage"
         case .network: "Network"
         case .battery: "Battery"
         case .thermal: "Thermal"

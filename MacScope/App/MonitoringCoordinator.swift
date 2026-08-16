@@ -28,6 +28,8 @@ final class MonitoringCoordinator {
     private var batteryTask: Task<Void, Never>?
     private var thermalTask: Task<Void, Never>?
     private var workspaceObservers: [NSObjectProtocol] = []
+    private var samplingGeneration: UInt64 = 0
+    private let clock = ContinuousClock()
 
     init(
         memoryViewModel: MemoryViewModel,
@@ -68,11 +70,25 @@ final class MonitoringCoordinator {
 
     private func startSampling() {
         guard memoryTask == nil else { return }
+        samplingGeneration &+= 1
+        let generation = samplingGeneration
         diagnostics.resumedAfterWake()
 
+        Task { [weak self] in
+            guard let self else { return }
+            await resetRateBaselines()
+            guard generation == samplingGeneration else { return }
+            launchSamplingTasks(generation: generation)
+        }
+    }
+
+    private func launchSamplingTasks(generation: UInt64) {
+        guard generation == samplingGeneration, memoryTask == nil else { return }
+
         memoryTask = Task { [weak self] in
-            while let self, !Task.isCancelled {
-                await measure(.memory) { await memoryViewModel.refresh(); return memorySucceeded }
+            while let self, isCurrent(generation) {
+                await measure(.memory, generation: generation) { await memoryViewModel.refresh(); return memorySucceeded }
+                guard isCurrent(generation) else { return }
                 if case .loaded(let stats) = memoryViewModel.state {
                     alertCenter.observeMemoryPressure(stats.pressure, at: stats.timestamp)
                 }
@@ -81,47 +97,51 @@ final class MonitoringCoordinator {
             }
         }
         cpuTask = Task { [weak self] in
-            while let self, !Task.isCancelled {
-                await measure(.cpu) { await cpuViewModel.refresh(); return cpuSucceeded }
+            while let self, isCurrent(generation) {
+                await measure(.cpu, generation: generation) { await cpuViewModel.refresh(); return cpuSucceeded }
+                guard isCurrent(generation) else { return }
                 await evaluateCPUAlert()
                 guard await sleep(for: settings.refreshInterval.duration) else { return }
             }
         }
         processTask = Task { [weak self] in
-            while let self, !Task.isCancelled {
-                await measure(.processes) { await processesViewModel.refresh(); return processesSucceeded }
+            while let self, isCurrent(generation) {
+                await measure(.processes, generation: generation) { await processesViewModel.refresh(); return processesSucceeded }
+                guard isCurrent(generation) else { return }
                 await evaluateResourceHogAlerts()
                 guard await sleep(for: settings.processRefreshDuration) else { return }
             }
         }
         gpuTask = Task { [weak self] in
-            while let self, !Task.isCancelled {
-                await measure(.gpu) { await gpuViewModel.refresh(); return gpuSucceeded }
+            while let self, isCurrent(generation) {
+                await measure(.gpu, generation: generation) { await gpuViewModel.refresh(); return gpuSucceeded }
                 let seconds = Swift.max(2, settings.refreshInterval.rawValue)
                 guard await sleep(for: .milliseconds(Int(seconds * 1_000))) else { return }
             }
         }
         systemTask = Task { [weak self] in
-            guard let self, !Task.isCancelled else { return }
-            await measure(.system) { await systemViewModel.refresh(); return systemSucceeded }
+            guard let self, isCurrent(generation) else { return }
+            await measure(.system, generation: generation) { await systemViewModel.refresh(); return systemSucceeded }
         }
         diskTask = Task { [weak self] in
-            while let self, !Task.isCancelled {
-                await measure(.disk) { await diskViewModel.refresh(); return diskSucceeded }
+            while let self, isCurrent(generation) {
+                await measure(.disk, generation: generation) { await diskViewModel.refresh(); return diskSucceeded }
+                guard isCurrent(generation) else { return }
                 await evaluateDiskAlert()
                 let seconds = Swift.max(5, settings.refreshInterval.rawValue)
                 guard await sleep(for: .milliseconds(Int(seconds * 1_000))) else { return }
             }
         }
         networkTask = Task { [weak self] in
-            while let self, !Task.isCancelled {
-                await measure(.network) { await networkViewModel.refresh(); return networkSucceeded }
+            while let self, isCurrent(generation) {
+                await measure(.network, generation: generation) { await networkViewModel.refresh(); return networkSucceeded }
                 guard await sleep(for: settings.refreshInterval.duration) else { return }
             }
         }
         batteryTask = Task { [weak self] in
-            while let self, !Task.isCancelled {
-                await measure(.battery) { await batteryViewModel.refresh(); return batterySucceeded }
+            while let self, isCurrent(generation) {
+                await measure(.battery, generation: generation) { await batteryViewModel.refresh(); return batterySucceeded }
+                guard isCurrent(generation) else { return }
                 if case .loaded(let stats) = batteryViewModel.state {
                     alertCenter.observeBatteryState(stats)
                 }
@@ -130,8 +150,9 @@ final class MonitoringCoordinator {
             }
         }
         thermalTask = Task { [weak self] in
-            while let self, !Task.isCancelled {
-                await measure(.thermal) { await thermalViewModel.refresh(); return thermalViewModel.stats != nil }
+            while let self, isCurrent(generation) {
+                await measure(.thermal, generation: generation) { await thermalViewModel.refresh(); return thermalViewModel.stats != nil }
+                guard isCurrent(generation) else { return }
                 if let stats = thermalViewModel.stats { alertCenter.observeThermalState(stats) }
                 await evaluateThermalAlert()
                 guard await sleep(for: .seconds(5)) else { return }
@@ -155,6 +176,7 @@ final class MonitoringCoordinator {
     }
 
     private func pauseForSleep() {
+        samplingGeneration &+= 1
         diagnostics.pausedForSleep()
         let tasks = [memoryTask, cpuTask, processTask, gpuTask, systemTask, diskTask, networkTask, batteryTask, thermalTask]
         tasks.forEach { $0?.cancel() }
@@ -171,11 +193,29 @@ final class MonitoringCoordinator {
 
     private func measure(
         _ collector: MonitorCollector,
+        generation: UInt64,
         operation: () async -> Bool
     ) async {
-        let started = Date()
+        let started = clock.now
         let succeeded = await operation()
-        diagnostics.record(collector, duration: Date().timeIntervalSince(started), succeeded: succeeded)
+        guard isCurrent(generation) else { return }
+        let elapsed = started.duration(to: clock.now)
+        let components = elapsed.components
+        let seconds = Double(components.seconds) + Double(components.attoseconds) / 1e18
+        diagnostics.record(collector, duration: Swift.max(0, seconds), succeeded: succeeded)
+    }
+
+    private func isCurrent(_ generation: UInt64) -> Bool {
+        !Task.isCancelled && generation == samplingGeneration
+    }
+
+    private func resetRateBaselines() async {
+        async let memory: Void = memoryViewModel.resetSamplingBaseline()
+        async let cpu: Void = cpuViewModel.resetSamplingBaseline()
+        async let processes: Void = processesViewModel.resetSamplingBaseline()
+        async let disk: Void = diskViewModel.resetSamplingBaseline()
+        async let network: Void = networkViewModel.resetSamplingBaseline()
+        _ = await (memory, cpu, processes, disk, network)
     }
 
     private var memorySucceeded: Bool { if case .loaded = memoryViewModel.state { true } else { false } }

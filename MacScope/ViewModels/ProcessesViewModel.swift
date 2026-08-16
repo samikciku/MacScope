@@ -149,6 +149,10 @@ final class ProcessesViewModel: ObservableObject {
         }
     }
 
+    func resetSamplingBaseline() async {
+        await monitor.resetBaseline()
+    }
+
     func refreshContinuously(every interval: Duration = .seconds(2)) async {
         while !Task.isCancelled {
             await refresh()

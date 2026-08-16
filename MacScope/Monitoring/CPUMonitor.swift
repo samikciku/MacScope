@@ -18,6 +18,10 @@ enum CPUMonitorError: Error, Equatable, LocalizedError, Sendable {
 actor CPUMonitor: CPUMonitorProtocol {
     private var previousTicks: [CPUCoreTicks]?
 
+    func resetBaseline() {
+        previousTicks = nil
+    }
+
     func currentStats() async throws -> CPUStats {
         let previous: [CPUCoreTicks]
         if let previousTicks {

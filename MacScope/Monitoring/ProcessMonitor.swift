@@ -40,6 +40,10 @@ actor ProcessMonitor: ProcessMonitorProtocol {
     private var metadataCache: [ProcessSnapshot.Identity: StaticMetadata] = [:]
     private var ownerCache: [uid_t: String] = [:]
 
+    func resetBaseline() {
+        previousSamples.removeAll(keepingCapacity: true)
+    }
+
     func currentProcesses() async throws -> [ProcessSnapshot] {
         let timestamp = Date()
         let pids = try listAllPIDs()

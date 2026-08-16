@@ -52,6 +52,22 @@ Do not place Apple IDs, app-specific passwords, API keys, certificate private ke
 - Validate direct-distribution entitlements and process visibility on clean Macs.
 - Decide whether launch-at-login is in release scope and, if so, implement it with ServiceManagement.
 
+## Gate ownership
+
+Repository automation can build, run unit/integration tests, package an ad-hoc app, verify its signature structure, test ZIP integrity, and verify the DMG. It cannot establish public-release trust.
+
+The release owner must separately provide and verify:
+
+- Developer ID credentials held outside the repository
+- Hardened Runtime and final entitlement review
+- Successful Apple notarization and stapling
+- Gatekeeper launch on a clean Mac and clean user account
+- Hands-on Apple Silicon coverage across supported macOS versions
+- VoiceOver and destructive-action review using the signed candidate
+- A sustained Instruments run for CPU, allocations, leaks, and memory growth
+
+Do not label an artifact stable until every external gate above has evidence attached to the release record.
+
 ## Apple references
 
 - Developer ID certificates: https://developer.apple.com/help/account/certificates/create-developer-id-certificates/

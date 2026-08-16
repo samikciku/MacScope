@@ -54,6 +54,10 @@ actor DiskMonitor: DiskMonitorProtocol {
         self.volumeURL = volumeURL
     }
 
+    func resetBaseline() {
+        previousIOSnapshot = nil
+    }
+
     func currentStats() async throws -> DiskStats {
         let values = try volumeURL.resourceValues(forKeys: [
             .volumeNameKey,

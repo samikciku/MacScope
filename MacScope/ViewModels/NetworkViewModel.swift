@@ -34,4 +34,9 @@ final class NetworkViewModel: ObservableObject {
             state = .failed(error.localizedDescription)
         }
     }
+
+    func resetSamplingBaseline() async {
+        await monitor.resetBaseline()
+        await processNetworkMonitor.resetBaseline()
+    }
 }

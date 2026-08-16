@@ -28,6 +28,10 @@ final class MemoryViewModel: ObservableObject {
         }
     }
 
+    func resetSamplingBaseline() async {
+        await monitor.resetBaseline()
+    }
+
     func refreshContinuously(every interval: Duration = .seconds(1)) async {
         while !Task.isCancelled {
             await refresh()

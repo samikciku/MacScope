@@ -17,7 +17,7 @@ struct MacScopeApp: App {
                 ForEach(Array(AppSection.primaryNavigation.enumerated()), id: \.element) { index, section in
                     if index < 9 {
                         Button(section.title) {
-                            appState.selection = section
+                            appState.navigate(to: section)
                         }
                         .keyboardShortcut(
                             KeyEquivalent(Character(String(index + 1))),
