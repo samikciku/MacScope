@@ -1,0 +1,24 @@
+name: Feature request
+description: Suggest a safe, public-API-compatible improvement.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Privacy, permissions, or destructive-action considerations
+      description: Explain any access to processes, files, network data, or privileged APIs.
+    validations:
+      required: true
