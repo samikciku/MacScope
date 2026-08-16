@@ -15,7 +15,11 @@ struct DashboardView: View {
 
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 16) {
+                HealthSummaryCard(assessment: healthAssessment) {
+                    onNavigate(healthAssessment.destination)
+                }
+                LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
                 MetricCard(title: "Memory", value: memorySummary, systemImage: "memorychip") { onNavigate(.memory) }
                 MetricCard(title: "CPU", value: cpuSummary, systemImage: "cpu") { onNavigate(.cpu) }
                 MetricCard(title: "GPU", value: gpuSummary, systemImage: "display") { onNavigate(.gpu) }
@@ -39,10 +43,11 @@ struct DashboardView: View {
                     value: { ($0.cpuPercent / 100).formatted(.percent.precision(.fractionLength(1))) },
                     onSelect: openProcess
                 )
+                }
             }
             .padding()
         }
-        .navigationTitle("Dashboard")
+        .navigationTitle("Overview")
     }
 
     private func openProcess(_ process: ProcessSnapshot) {
@@ -143,6 +148,75 @@ struct DashboardView: View {
     private var topCPUProcesses: [ProcessSnapshot] {
         guard case .loaded(let snapshots) = processesViewModel.state else { return [] }
         return Array(snapshots.sorted { $0.cpuPercent > $1.cpuPercent }.prefix(5))
+    }
+
+    private var healthAssessment: SystemHealthAssessment {
+        let pressure: MemoryStats.Pressure? = {
+            guard case .loaded(let stats) = memoryViewModel.state else { return nil }
+            return stats.pressure
+        }()
+        let cpu: Double? = {
+            guard case .loaded(let stats) = cpuViewModel.state else { return nil }
+            return stats.totalUsage
+        }()
+        let disk: Double? = {
+            guard case .loaded(let stats) = diskViewModel.state else { return nil }
+            return stats.usedFraction
+        }()
+        return SystemHealthAnalyzer.assess(
+            memoryPressure: pressure,
+            cpuUsage: cpu,
+            diskUsedFraction: disk,
+            thermalState: thermalViewModel.stats?.state,
+            topMemoryProcess: topMemoryProcesses.first,
+            topCPUProcess: topCPUProcesses.first
+        )
+    }
+}
+
+private struct HealthSummaryCard: View {
+    let assessment: SystemHealthAssessment
+    let action: () -> Void
+
+    var body: some View {
+        GroupBox {
+            HStack(alignment: .top, spacing: 14) {
+                Image(systemName: icon)
+                    .font(.title2).foregroundStyle(color).frame(width: 30)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(assessment.title).font(.title3).fontWeight(.semibold)
+                    Text(assessment.evidence)
+                    Text(assessment.recommendation).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Review") { action() }
+                    .buttonStyle(.borderedProminent)
+                    .tint(assessment.level == .critical ? .red : nil)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 4)
+        } label: {
+            Text("Current condition")
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Current condition: \(assessment.title). \(assessment.evidence) \(assessment.recommendation)")
+        .accessibilityHint("Open recommended details")
+    }
+
+    private var icon: String {
+        switch assessment.level {
+        case .healthy: "checkmark.circle.fill"
+        case .elevated: "exclamationmark.triangle.fill"
+        case .critical: "exclamationmark.octagon.fill"
+        }
+    }
+
+    private var color: Color {
+        switch assessment.level {
+        case .healthy: .green
+        case .elevated: .orange
+        case .critical: .red
+        }
     }
 }
 

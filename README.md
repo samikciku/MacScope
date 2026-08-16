@@ -3,7 +3,9 @@
 [![CI](https://github.com/samikciku/MacScope/actions/workflows/ci.yml/badge.svg)](https://github.com/samikciku/MacScope/actions/workflows/ci.yml)
 [![License: GPL v3+](https://img.shields.io/badge/License-GPLv3%2B-blue.svg)](LICENSE)
 
-MacScope is a native SwiftUI macOS resource monitor for macOS 14 and later. It reads memory and CPU statistics through Mach APIs, enumerates processes with `libproc`, discovers GPU devices through Metal, and never fabricates unavailable utilization data. The GPU screen offers public Metal metadata, an explicitly labeled experimental Apple Silicon source, and a Developer ID–gated advanced helper source.
+MacScope is a native SwiftUI diagnostic monitor for macOS 14 and later. It explains what is putting pressure on a Mac, identifies the visible contributors, and helps users choose a cautious next step. It reads memory and CPU statistics through Mach APIs, enumerates processes with `libproc`, discovers GPU devices through Metal, and never fabricates unavailable utilization data.
+
+The primary navigation is organized around seven workflows: Overview, Applications, Performance, Storage, Network, Events, and Settings. Individual CPU, memory, GPU, energy, battery, thermal, process, alert, and self-monitoring surfaces remain available inside those workflows without each competing for a permanent sidebar position.
 
 Process views support both individual processes and expandable application aggregates. A dedicated MacScope section exposes the monitor's own memory, CPU, thread count, and bounded history.
 

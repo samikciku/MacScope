@@ -85,6 +85,9 @@ final class AppState: ObservableObject {
 
 enum AppSection: String, CaseIterable, Identifiable, Sendable {
     case dashboard
+    case applications
+    case performance
+    case events
     case processes
     case memory
     case cpu
@@ -105,7 +108,10 @@ enum AppSection: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .dashboard: "Dashboard"
+        case .dashboard: "Overview"
+        case .applications: "Applications"
+        case .performance: "Performance"
+        case .events: "Events"
         case .processes: "Processes"
         case .memory: "Memory"
         case .cpu: "CPU"
@@ -127,6 +133,9 @@ enum AppSection: String, CaseIterable, Identifiable, Sendable {
     var systemImage: String {
         switch self {
         case .dashboard: "gauge.with.dots.needle.67percent"
+        case .applications: "square.stack.3d.up"
+        case .performance: "waveform.path.ecg"
+        case .events: "clock.badge.exclamationmark"
         case .processes: "list.bullet.rectangle"
         case .memory: "memorychip"
         case .cpu: "cpu"
@@ -144,4 +153,8 @@ enum AppSection: String, CaseIterable, Identifiable, Sendable {
         case .settings: "gearshape"
         }
     }
+
+    static let primaryNavigation: [AppSection] = [
+        .dashboard, .applications, .performance, .disk, .network, .events, .settings
+    ]
 }

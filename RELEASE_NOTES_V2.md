@@ -4,6 +4,7 @@ MacScope 2 expands the native macOS monitor from core CPU, memory, and process v
 
 ## Highlights
 
+- A focused seven-destination navigation model and an Overview diagnosis that states the current condition, supporting evidence, safest recommendation, and relevant details.
 - Disk capacity, aggregate storage throughput, and a largest-first folder analyzer with confirmed moves to Trash.
 - Network interface throughput and best-effort per-process attribution with protected task termination.
 - Battery, charging, Low Power Mode, thermal-pressure, energy, and system-event views.

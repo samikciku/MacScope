@@ -14,7 +14,7 @@ struct MacScopeApp: App {
         .defaultSize(width: 1_080, height: 720)
         .commands {
             CommandMenu("Navigate") {
-                ForEach(Array(AppSection.allCases.enumerated()), id: \.element) { index, section in
+                ForEach(Array(AppSection.primaryNavigation.enumerated()), id: \.element) { index, section in
                     if index < 9 {
                         Button(section.title) {
                             appState.selection = section
