@@ -21,7 +21,21 @@ struct MemoryStats: Equatable, Sendable {
         case critical
         case unavailable
 
-        var title: String { rawValue.capitalized }
+        var title: String {
+            switch self {
+            case .unavailable: "Awaiting Data"
+            default: rawValue.capitalized
+            }
+        }
+
+        var guidance: String {
+            switch self {
+            case .normal: "macOS is meeting current memory demand. More free RAM is not inherently better because reusable caches improve performance."
+            case .warning: "Memory demand is elevated. Review active applications and lower-impact candidates before ending anything."
+            case .critical: "Memory demand is severe. Save work, then close high-memory applications you recognize and no longer need."
+            case .unavailable: "Waiting for the first public macOS memory-pressure event; MacScope does not guess a normal state."
+            }
+        }
     }
 
     let timestamp: Date

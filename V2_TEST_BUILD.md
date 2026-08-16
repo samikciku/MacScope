@@ -10,8 +10,8 @@
 - Build number: `2`
 - Minimum macOS: 14.0
 - Architecture: Apple Silicon (`arm64`)
-- DMG SHA-256: `d2aaaf2e40dba59d4e4cba991343b8f19edb2f70c0542e235dc001093a13905b`
-- ZIP SHA-256: `017b5748c4640507e2754d3c1a0ab6e691a81bfbd4053a0e32f50eefe7948619`
+- DMG SHA-256: `a842aeca324f91d844a30a2fd13758efc4b04b06c17afde0e57567518d8ee1bf`
+- ZIP SHA-256: `1959c8b1fb5d5a8fa99e4aca2201e774d2f15b63276089a5c32a69d567992c0f`
 
 The DMG was independently verified with `hdiutil verify`. The ZIP was extracted into a temporary directory and its plist, version, architecture, and strict code signature were checked independently. The packaged app also completed a controlled GUI launch and graceful-quit smoke test.
 
@@ -36,6 +36,7 @@ The DMG was independently verified with `hdiutil verify`. The ZIP was extracted 
 - Recheck Dashboard navigation, Disk analysis/Trash, Network attribution, Energy, alerts, compact mode, and menu-bar mode.
 - Leave MacScope running for at least 30 minutes and note responsiveness, CPU use, memory growth, and unavailable fields.
 - In Memory, click **Used**, switch between Applications and Processes and among the classification filters, and confirm lower-impact suggestions appear only after enough recent history is collected. Expand a multi-process app such as Firefox, hover group/member assessments for their reasons, and verify both individual and group termination require confirmation and warn about unsaved work.
+- After ending a disposable task from Memory, wait for the measurement report. Confirm estimated resident memory is kept separate from measured Available and Free/Purgeable changes, and that the explanation remains sensible when macOS retains released pages as reusable cache.
 
 ## Known limitations
 

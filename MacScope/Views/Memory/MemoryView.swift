@@ -24,6 +24,7 @@ struct MemoryView: View {
         .sheet(isPresented: $showsConsumers) {
             MemoryConsumersView(
                 systemUsedBytes: currentUsedBytes,
+                memoryViewModel: viewModel,
                 processesViewModel: processesViewModel
             )
             .frame(minWidth: 760, minHeight: 580)
@@ -71,9 +72,16 @@ struct MemoryView: View {
                 swapRows(stats.swap)
                 GridRow {
                     Text("Memory pressure")
-                    Text(stats.pressure.title)
-                        .foregroundStyle(pressureColor(stats.pressure))
-                        .accessibilityLabel("Memory pressure \(stats.pressure.title)")
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label(stats.pressure.title, systemImage: pressureIcon(stats.pressure))
+                            .foregroundStyle(pressureColor(stats.pressure))
+                        Text(stats.pressure.guidance)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Memory pressure \(stats.pressure.title). \(stats.pressure.guidance)")
                 }
             }
             .padding(24)
@@ -99,6 +107,15 @@ struct MemoryView: View {
         case .warning: .orange
         case .critical: .red
         case .unavailable: .secondary
+        }
+    }
+
+    private func pressureIcon(_ pressure: MemoryStats.Pressure) -> String {
+        switch pressure {
+        case .normal: "checkmark.circle.fill"
+        case .warning: "exclamationmark.triangle.fill"
+        case .critical: "exclamationmark.octagon.fill"
+        case .unavailable: "clock"
         }
     }
 

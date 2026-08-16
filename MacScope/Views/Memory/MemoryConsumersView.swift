@@ -34,6 +34,7 @@ private enum MemoryConsumerPresentation: String, CaseIterable, Identifiable {
 
 struct MemoryConsumersView: View {
     let systemUsedBytes: UInt64
+    @ObservedObject var memoryViewModel: MemoryViewModel
     @ObservedObject var processesViewModel: ProcessesViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
@@ -42,6 +43,8 @@ struct MemoryConsumersView: View {
     @State private var pendingGroupTermination: ApplicationProcessGroup?
     @State private var filter: MemoryConsumerFilter = .all
     @State private var presentation: MemoryConsumerPresentation = .applications
+    @State private var reclaimReport: MemoryReclaimReport?
+    @State private var isMeasuringReclaim = false
 
     private var consumers: [ProcessSnapshot] {
         guard case .loaded(let snapshots) = processesViewModel.state else { return [] }
@@ -123,7 +126,7 @@ struct MemoryConsumersView: View {
             Button("Cancel", role: .cancel) { pendingTermination = nil }
             Button("End Task", role: .destructive) {
                 pendingTermination = nil
-                Task { await processesViewModel.terminate(process) }
+                Task { await terminateAndMeasure(process) }
             }
         } message: { process in
             Text("End \(process.name) (PID \(process.pid))? Unsaved work may be lost. MacScope will send a normal termination request.")
@@ -132,7 +135,7 @@ struct MemoryConsumersView: View {
             Button("Cancel", role: .cancel) { pendingGroupTermination = nil }
             Button("End All Tasks", role: .destructive) {
                 pendingGroupTermination = nil
-                Task { await processesViewModel.terminate(group) }
+                Task { await terminateAndMeasure(group) }
             }
         } message: { group in
             let eligible = processesViewModel.terminableProcesses(in: group).count
@@ -151,7 +154,7 @@ struct MemoryConsumersView: View {
             HStack {
                 Label("System used", systemImage: "memorychip")
                 Spacer()
-                Text(ByteFormatter.string(fromByteCount: systemUsedBytes)).monospacedDigit()
+                Text(ByteFormatter.string(fromByteCount: currentMemoryStats?.usedBytes ?? systemUsedBytes)).monospacedDigit()
             }
             HStack {
                 Text("Visible process resident memory")
@@ -162,6 +165,16 @@ struct MemoryConsumersView: View {
                 Text("Lower-impact candidates shown")
                 Spacer()
                 Text(ByteFormatter.string(fromByteCount: suggestedBytes)).monospacedDigit()
+            }
+            if isMeasuringReclaim {
+                HStack {
+                    ProgressView().controlSize(.small)
+                    Text("Measuring memory after termination…")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if let report = reclaimReport {
+                reclaimSummary(report)
             }
             Picker("Display", selection: $presentation) {
                 ForEach(MemoryConsumerPresentation.allCases) { mode in
@@ -302,6 +315,80 @@ struct MemoryConsumersView: View {
             name: group.name,
             assessments: group.processes.map(assessment(for:))
         )
+    }
+
+    private func terminateAndMeasure(_ process: ProcessSnapshot) async {
+        guard let before = currentMemoryStats else {
+            await processesViewModel.terminate(process)
+            return
+        }
+        isMeasuringReclaim = true
+        reclaimReport = nil
+        let estimate = process.residentBytes
+        await processesViewModel.terminate(process)
+        await finishMeasurement(target: process.name, estimate: estimate, before: before)
+    }
+
+    private func terminateAndMeasure(_ group: ApplicationProcessGroup) async {
+        guard let before = currentMemoryStats else {
+            await processesViewModel.terminate(group)
+            return
+        }
+        isMeasuringReclaim = true
+        reclaimReport = nil
+        let estimate = assessment(for: group).estimatedResidentBytes
+        await processesViewModel.terminate(group)
+        await finishMeasurement(target: group.name, estimate: estimate, before: before)
+    }
+
+    private func finishMeasurement(target: String, estimate: UInt64, before: MemoryStats) async {
+        try? await Task.sleep(for: .seconds(2))
+        await memoryViewModel.refresh()
+        if let after = currentMemoryStats {
+            reclaimReport = MemoryReclaimReport(
+                targetName: target,
+                estimatedResidentBytes: estimate,
+                before: before,
+                after: after
+            )
+        }
+        isMeasuringReclaim = false
+    }
+
+    private var currentMemoryStats: MemoryStats? {
+        guard case .loaded(let stats) = memoryViewModel.state else { return nil }
+        return stats
+    }
+
+    private func reclaimSummary(_ report: MemoryReclaimReport) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("After ending \(report.targetName)").font(.caption).fontWeight(.semibold)
+            HStack {
+                Text("Estimated resident")
+                Spacer()
+                Text(ByteFormatter.string(fromByteCount: report.estimatedResidentBytes)).monospacedDigit()
+            }
+            HStack {
+                Text("Available change")
+                Spacer()
+                Text(signedBytes(report.availableChange)).monospacedDigit()
+            }
+            HStack {
+                Text("Free / purgeable change")
+                Spacer()
+                Text("\(signedBytes(report.freeChange)) / \(signedBytes(report.purgeableChange))")
+                    .monospacedDigit()
+            }
+            Text(report.explanation).font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(8)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+        .accessibilityElement(children: .combine)
+    }
+
+    private func signedBytes(_ value: Int64) -> String {
+        let magnitude = value == .min ? UInt64.max : UInt64(abs(value))
+        return "\(value >= 0 ? "+" : "−")\(ByteFormatter.string(fromByteCount: magnitude))"
     }
 
     private func assessmentLabel(_ assessment: MemoryReclaimAssessment) -> some View {
