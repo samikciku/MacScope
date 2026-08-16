@@ -1,0 +1,14 @@
+.DS_Store
+.build/
+dist/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.dmg
+*.zip
+
+# Local planning and agent context
+CODEX_MASTER_PROMPT*.md
+PLAN*.md
+IMPLEMENTATION_STATUS.md
+V1_TEST_BUILD.md
