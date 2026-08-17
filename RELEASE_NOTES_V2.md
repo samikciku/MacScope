@@ -1,5 +1,7 @@
 # MacScope 2.0.0
 
+**Open-source Task Manager for Mac**
+
 MacScope 2 expands the native macOS monitor from core CPU, memory, and process visibility into a broader local system-diagnostics application. Collection remains local, bounded, and explicit about unavailable metrics.
 
 ## Highlights
