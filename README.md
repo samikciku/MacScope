@@ -115,7 +115,7 @@ Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), [ARCHITECTUR
 - Launch at login is not implemented.
 - Public distribution still requires Developer ID signing, notarization, broader hardware testing, and final entitlement review.
 
-See [GPU_DECISION.md](GPU_DECISION.md), [PROFILING.md](PROFILING.md), and [RELEASE_PREPARATION.md](RELEASE_PREPARATION.md).
+See [GPU_DECISION.md](GPU_DECISION.md) and [PROFILING.md](PROFILING.md) for technical limitations and measurements.
 
 ## License
 
