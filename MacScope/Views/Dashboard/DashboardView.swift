@@ -26,26 +26,32 @@ struct DashboardView: View {
                 MetricCard(title: "Memory", value: memorySummary, systemImage: "memorychip") { onNavigate(.memory) }
                 MetricCard(title: "CPU", value: cpuSummary, systemImage: "cpu") { onNavigate(.cpu) }
                 MetricCard(title: "GPU", value: gpuSummary, systemImage: "display") { onNavigate(.gpu) }
-                MetricCard(title: "Processes", value: processSummary, systemImage: "list.bullet.rectangle") { onNavigate(.processes) }
+                if DistributionChannel.allowsProcessInspection {
+                    MetricCard(title: "Processes", value: processSummary, systemImage: "list.bullet.rectangle") { onNavigate(.processes) }
+                }
                 MetricCard(title: "Disk", value: diskSummary, systemImage: "internaldrive") { onNavigate(.disk) }
                 MetricCard(title: "Network", value: networkSummary, systemImage: "network") { onNavigate(.network) }
                 MetricCard(title: "Battery", value: batterySummary, systemImage: "battery.75percent") { onNavigate(.battery) }
                 MetricCard(title: "Thermal", value: thermalSummary, systemImage: "thermometer.medium") { onNavigate(.thermal) }
-                ProcessRankingCard(
-                    title: "Top memory consumers",
-                    processes: topMemoryProcesses,
-                    value: { ByteFormatter.string(fromByteCount: $0.residentBytes) },
-                    onSelect: openProcess
-                )
+                if DistributionChannel.allowsProcessInspection {
+                    ProcessRankingCard(
+                        title: "Top memory consumers",
+                        processes: topMemoryProcesses,
+                        value: { ByteFormatter.string(fromByteCount: $0.residentBytes) },
+                        onSelect: openProcess
+                    )
+                }
                 RecentEventsCard(events: Array(alertCenter.systemEvents.suffix(5).reversed())) { onNavigate(.timeline) }
                 dashboardLink(.memory) { CompactMemoryChart(history: memoryViewModel.history) }
                 dashboardLink(.cpu) { CompactCPUChart(history: cpuViewModel.history) }
-                ProcessRankingCard(
-                    title: "Top CPU consumers",
-                    processes: topCPUProcesses,
-                    value: { ($0.cpuPercent / 100).formatted(.percent.precision(.fractionLength(1))) },
-                    onSelect: openProcess
-                )
+                if DistributionChannel.allowsProcessInspection {
+                    ProcessRankingCard(
+                        title: "Top CPU consumers",
+                        processes: topCPUProcesses,
+                        value: { ($0.cpuPercent / 100).formatted(.percent.precision(.fractionLength(1))) },
+                        onSelect: openProcess
+                    )
+                }
                 }
             }
             .padding()

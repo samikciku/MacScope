@@ -52,9 +52,15 @@ final class AppState: ObservableObject {
         self.monitoringDiagnostics = monitoringDiagnostics
         self.alertEvaluator = alertEvaluator
         self.resourceHogAlertEvaluator = resourceHogAlertEvaluator
+        if !DistributionChannel.allowsExperimentalGPU {
+            settings.experimentalGPUEnabled = false
+        }
+        if !DistributionChannel.allowsPrivilegedGPUHelper {
+            settings.advancedGPUHelperEnabled = false
+        }
         gpuViewModel.enforceAllowedSources(
-            experimentalEnabled: settings.experimentalGPUEnabled,
-            helperEnabled: settings.advancedGPUHelperEnabled
+            experimentalEnabled: settings.experimentalGPUEnabled && DistributionChannel.allowsExperimentalGPU,
+            helperEnabled: settings.advancedGPUHelperEnabled && DistributionChannel.allowsPrivilegedGPUHelper
         )
     }
 
@@ -83,14 +89,16 @@ final class AppState: ObservableObject {
     func refreshAll() async {
         async let memory: Void = memoryViewModel.refresh()
         async let cpu: Void = cpuViewModel.refresh()
-        async let processes: Void = processesViewModel.refresh()
         async let gpu: Void = gpuViewModel.refresh()
         async let system: Void = systemViewModel.refresh()
         async let disk: Void = diskViewModel.refresh()
         async let network: Void = networkViewModel.refresh()
         async let battery: Void = batteryViewModel.refresh()
         async let thermal: Void = thermalViewModel.refresh()
-        _ = await (memory, cpu, processes, gpu, system, disk, network, battery, thermal)
+        if DistributionChannel.allowsProcessInspection {
+            await processesViewModel.refresh()
+        }
+        _ = await (memory, cpu, gpu, system, disk, network, battery, thermal)
     }
 
     func navigate(to section: AppSection) {
@@ -120,6 +128,10 @@ enum PerformanceTab: String, CaseIterable, Identifiable, Sendable {
     case thermal = "Thermal"
     case battery = "Battery"
     var id: Self { self }
+
+    static var availableCases: [Self] {
+        DistributionChannel.allowsProcessInspection ? allCases : allCases.filter { $0 != .energy }
+    }
 }
 
 enum EventsTab: String, CaseIterable, Identifiable, Sendable {
@@ -227,7 +239,10 @@ enum AppSection: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    static let primaryNavigation: [AppSection] = [
-        .dashboard, .applications, .performance, .disk, .network, .events, .settings
-    ]
+    static var primaryNavigation: [AppSection] {
+        var sections: [AppSection] = [.dashboard]
+        if DistributionChannel.allowsProcessInspection { sections.append(.applications) }
+        sections += [.performance, .disk, .network, .events, .settings]
+        return sections
+    }
 }

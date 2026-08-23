@@ -179,12 +179,15 @@ final class ProcessesViewModel: ObservableObject {
     }
 
     func terminationDecision(for process: ProcessSnapshot) -> ProcessTerminationDecision {
-        terminationPolicy.decision(for: process)
+        guard DistributionChannel.allowsProcessActions else {
+            return .denied(reason: "Process actions are unavailable in the Mac App Store sandbox.")
+        }
+        return terminationPolicy.decision(for: process)
     }
 
     func terminableProcesses(in group: ApplicationProcessGroup) -> [ProcessSnapshot] {
         group.processes.filter {
-            if case .allowed = terminationPolicy.decision(for: $0) { return true }
+            if case .allowed = terminationDecision(for: $0) { return true }
             return false
         }
     }

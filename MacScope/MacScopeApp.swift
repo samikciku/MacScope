@@ -9,7 +9,10 @@ struct MacScopeApp: App {
             RootContainerView(settings: appState.settings)
                 .environmentObject(appState)
                 .frame(minWidth: 880, minHeight: 560)
-                .task { appState.startMonitoring() }
+                .task {
+                    appState.startMonitoring()
+                    await AppStoreSandboxAudit.runIfRequested()
+                }
         }
         .defaultSize(width: 1_080, height: 720)
         .commands {

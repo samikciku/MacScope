@@ -77,9 +77,13 @@ struct NetworkView: View {
                     }
                 }
 
-                processTraffic
+                if DistributionChannel.allowsPerProcessNetwork {
+                    processTraffic
+                }
 
-                Text("Interface counters use public link-layer statistics. Per-process attribution comes from macOS nettop totals and calculated deltas; MacScope does not inspect packet contents or remote hosts.")
+                Text(DistributionChannel.allowsPerProcessNetwork
+                     ? "Interface counters use public link-layer statistics. Per-process attribution comes from macOS nettop totals and calculated deltas; MacScope does not inspect packet contents or remote hosts."
+                     : "This Mac App Store build reports public aggregate interface counters. Per-process network attribution is unavailable in App Sandbox.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
             .padding(24)

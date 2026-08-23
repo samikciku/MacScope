@@ -39,6 +39,9 @@ actor ProcessTerminationService {
     }
 
     func send(_ signal: ProcessTerminationSignal, to process: ProcessSnapshot) throws {
+        guard DistributionChannel.allowsProcessActions else {
+            throw ProcessTerminationError.denied("Process actions are unavailable in the Mac App Store sandbox.")
+        }
         if case .denied(let reason) = policy.decision(for: process) {
             throw ProcessTerminationError.denied(reason)
         }

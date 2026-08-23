@@ -35,7 +35,8 @@ struct MemoryView: View {
         ScrollView {
             Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 14) {
                 metricRow("Total", stats.totalBytes)
-                GridRow {
+                if DistributionChannel.allowsProcessInspection {
+                    GridRow {
                     Button {
                         showsConsumers = true
                     } label: {
@@ -54,6 +55,9 @@ struct MemoryView: View {
                     .gridCellColumns(2)
                     .accessibilityLabel("Used memory, \(ByteFormatter.string(fromByteCount: stats.usedBytes))")
                     .accessibilityHint("Open processes using memory")
+                    }
+                } else {
+                    metricRow("Used", stats.usedBytes)
                 }
                 metricRow("Available", stats.availableBytes)
                 Divider()

@@ -72,6 +72,31 @@ struct MemoryReclaimClassifierTests {
         ).classification == .protected)
     }
 
+    @Test func recommendsIdleOrHighMemoryApplicationsButNeverProtectedProcesses() {
+        let idle = MemoryReclaimAssessment(
+            classification: .lowerImpact, reason: "Idle", estimatedResidentBytes: 150_000_000
+        )
+        let active = MemoryReclaimAssessment(
+            classification: .active, reason: "Working", estimatedResidentBytes: 800_000_000
+        )
+        let protected = MemoryReclaimAssessment(
+            classification: .protected, reason: "Protected", estimatedResidentBytes: 0
+        )
+
+        #expect(MemoryReclaimClassifier.recommendationReason(
+            for: idle, residentBytes: 150_000_000, isApplication: true
+        ) != nil)
+        #expect(MemoryReclaimClassifier.recommendationReason(
+            for: active, residentBytes: 800_000_000, isApplication: true
+        )?.contains("appears active") == true)
+        #expect(MemoryReclaimClassifier.recommendationReason(
+            for: protected, residentBytes: 2_000_000_000, isApplication: true
+        ) == nil)
+        #expect(MemoryReclaimClassifier.recommendationReason(
+            for: idle, residentBytes: 150_000_000, isApplication: false
+        ) == nil)
+    }
+
     private func sample(cpu: Double) -> ProcessResourceSample {
         .init(timestamp: Date(), residentBytes: 500_000_000, cpuPercent: cpu)
     }

@@ -47,15 +47,21 @@ struct GPUView: View {
 
     private var allowedSources: [GPUDataSource] {
         var sources: [GPUDataSource] = [.metal]
-        if settings.experimentalGPUEnabled { sources.append(.experimentalIORegistry) }
-        if settings.experimentalGPUEnabled, settings.advancedGPUHelperEnabled { sources.append(.privilegedHelper) }
+        if DistributionChannel.allowsExperimentalGPU, settings.experimentalGPUEnabled {
+            sources.append(.experimentalIORegistry)
+        }
+        if DistributionChannel.allowsPrivilegedGPUHelper,
+           settings.experimentalGPUEnabled,
+           settings.advancedGPUHelperEnabled {
+            sources.append(.privilegedHelper)
+        }
         return sources
     }
 
     private func enforceAccess() {
         viewModel.enforceAllowedSources(
-            experimentalEnabled: settings.experimentalGPUEnabled,
-            helperEnabled: settings.advancedGPUHelperEnabled
+            experimentalEnabled: settings.experimentalGPUEnabled && DistributionChannel.allowsExperimentalGPU,
+            helperEnabled: settings.advancedGPUHelperEnabled && DistributionChannel.allowsPrivilegedGPUHelper
         )
         Task { await viewModel.refresh() }
     }

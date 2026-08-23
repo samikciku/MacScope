@@ -25,6 +25,31 @@ final class MemoryActionCoordinator: ObservableObject {
         }
     }
 
+    func terminate(_ groups: [ApplicationProcessGroup], estimatedResidentBytes: UInt64) async {
+        guard !groups.isEmpty else { return }
+        let targetName = groups.count == 1 ? groups[0].name : "\(groups.count) selected applications"
+        await measure(targetName: targetName, estimate: estimatedResidentBytes) {
+            var results: [ProcessActionResult] = []
+            for group in groups {
+                results.append(await self.processesViewModel.terminate(group))
+            }
+            let completed = results.filter { $0.outcome == .completed }.count
+            let stillRunning = results.filter { $0.outcome == .stillRunning }.count
+            let failed = results.count - completed - stillRunning
+            let outcome: ProcessActionResult.Outcome = failed > 0
+                ? .failed
+                : (stillRunning > 0 ? .stillRunning : .completed)
+            return ProcessActionResult(
+                target: targetName,
+                action: .quitApplication,
+                outcome: outcome,
+                message: "Quit \(completed) of \(results.count) selected applications."
+                    + (stillRunning > 0 ? " \(stillRunning) still running." : "")
+                    + (failed > 0 ? " \(failed) could not be quit." : "")
+            )
+        }
+    }
+
     private func measure(
         targetName: String,
         estimate: UInt64,

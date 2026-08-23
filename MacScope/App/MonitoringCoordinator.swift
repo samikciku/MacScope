@@ -104,12 +104,14 @@ final class MonitoringCoordinator {
                 guard await sleep(for: settings.refreshInterval.duration) else { return }
             }
         }
-        processTask = Task { [weak self] in
-            while let self, isCurrent(generation) {
-                await measure(.processes, generation: generation) { await processesViewModel.refresh(); return processesSucceeded }
-                guard isCurrent(generation) else { return }
-                await evaluateResourceHogAlerts()
-                guard await sleep(for: settings.processRefreshDuration) else { return }
+        if DistributionChannel.allowsProcessInspection {
+            processTask = Task { [weak self] in
+                while let self, isCurrent(generation) {
+                    await measure(.processes, generation: generation) { await processesViewModel.refresh(); return processesSucceeded }
+                    guard isCurrent(generation) else { return }
+                    await evaluateResourceHogAlerts()
+                    guard await sleep(for: settings.processRefreshDuration) else { return }
+                }
             }
         }
         gpuTask = Task { [weak self] in
@@ -212,10 +214,12 @@ final class MonitoringCoordinator {
     private func resetRateBaselines() async {
         async let memory: Void = memoryViewModel.resetSamplingBaseline()
         async let cpu: Void = cpuViewModel.resetSamplingBaseline()
-        async let processes: Void = processesViewModel.resetSamplingBaseline()
         async let disk: Void = diskViewModel.resetSamplingBaseline()
         async let network: Void = networkViewModel.resetSamplingBaseline()
-        _ = await (memory, cpu, processes, disk, network)
+        if DistributionChannel.allowsProcessInspection {
+            await processesViewModel.resetSamplingBaseline()
+        }
+        _ = await (memory, cpu, disk, network)
     }
 
     private var memorySucceeded: Bool { if case .loaded = memoryViewModel.state { true } else { false } }

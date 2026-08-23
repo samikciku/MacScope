@@ -24,6 +24,24 @@ struct MemoryReclaimAssessment: Equatable, Sendable {
 }
 
 enum MemoryReclaimClassifier {
+    static let highMemoryRecommendationThreshold: UInt64 = 500_000_000
+
+    static func recommendationReason(
+        for assessment: MemoryReclaimAssessment,
+        residentBytes: UInt64,
+        isApplication: Bool
+    ) -> String? {
+        guard isApplication, assessment.classification != .protected else { return nil }
+        if assessment.classification == .lowerImpact {
+            return "Low recent activity makes this a lower-impact app to quit."
+        }
+        guard residentBytes >= highMemoryRecommendationThreshold else { return nil }
+        if assessment.classification == .active {
+            return "High memory use; this app appears active, so review it before quitting."
+        }
+        return "High memory use makes this app worth reviewing before quitting."
+    }
+
     static func assess(
         _ process: ProcessSnapshot,
         history: [ProcessResourceSample],

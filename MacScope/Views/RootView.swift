@@ -118,7 +118,7 @@ private struct PerformanceHubView: View {
     var body: some View {
         VStack(spacing: 0) {
             Picker("Performance metric", selection: $appState.performanceTab) {
-                ForEach(PerformanceTab.allCases) { tab in Text(tab.rawValue).tag(tab) }
+                ForEach(PerformanceTab.availableCases) { tab in Text(tab.rawValue).tag(tab) }
             }
             .pickerStyle(.segmented).frame(maxWidth: 650).padding(12)
             Divider()

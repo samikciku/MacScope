@@ -47,13 +47,21 @@ struct SettingsView: View {
             }
 
             Section("Advanced and Experimental") {
-                Toggle("Enable experimental GPU metrics", isOn: $settings.experimentalGPUEnabled)
-                Text("Uses undocumented Apple Silicon AGX IORegistry fields that can change or disappear after macOS updates. Public Metal remains the default.")
-                    .font(.footnote).foregroundStyle(.secondary)
-                Toggle("Enable advanced GPU helper", isOn: $settings.advancedGPUHelperEnabled)
-                    .disabled(!settings.experimentalGPUEnabled)
-                Text("Exposes the Developer ID–gated helper option. Installation still requires explicit administrator approval and can be removed from the GPU screen.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                if DistributionChannel.allowsExperimentalGPU {
+                    Toggle("Enable experimental GPU metrics", isOn: $settings.experimentalGPUEnabled)
+                    Text("Uses undocumented Apple Silicon AGX IORegistry fields that can change or disappear after macOS updates. Public Metal remains the default.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                if DistributionChannel.allowsPrivilegedGPUHelper {
+                    Toggle("Enable advanced GPU helper", isOn: $settings.advancedGPUHelperEnabled)
+                        .disabled(!settings.experimentalGPUEnabled)
+                    Text("Exposes the Developer ID–gated helper option. Installation still requires explicit administrator approval and can be removed from the GPU screen.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                if DistributionChannel.isMacAppStore {
+                    Text("This Mac App Store build uses public Metal GPU information and does not install privileged helpers or use experimental GPU metrics.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
             }
 
             Section("Diagnostics") {

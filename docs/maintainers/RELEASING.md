@@ -22,6 +22,44 @@ Before release, create a normal macOS app target in Xcode with:
 - A deliberate entitlement set with no unnecessary privileges
 - Automatic or manual signing for the selected Apple Developer team
 
+## Reproducible Xcode project
+
+`project.yml` is the source of truth for the Xcode project. After changing targets,
+configurations, sources, or signing settings, regenerate the checked-in project:
+
+```sh
+brew install xcodegen
+xcodegen generate --spec project.yml
+```
+
+The generated project provides `MacScope Direct` and `MacScope AppStore` schemes.
+The Store scheme defines `MAC_APP_STORE`, enables App Sandbox, grants only
+user-selected file read/write access, and removes experimental and privileged GPU
+choices from the product. This is a release-safety baseline, not evidence that the
+remaining system-monitoring features work inside App Sandbox or qualify for review.
+
+The measured sandbox results and remaining hands-on gates are tracked in
+[`APP_STORE_SANDBOX_AUDIT.md`](APP_STORE_SANDBOX_AUDIT.md). Store builds also
+remove process-centric navigation, process actions, Energy attribution, and
+per-process network collection because the signed audit demonstrated that their
+underlying APIs are unavailable in App Sandbox.
+
+Verify both unsigned configurations before configuring a developer team:
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcodebuild -project MacScope.xcodeproj -scheme "MacScope Direct" \
+  -configuration DirectDebug CODE_SIGNING_ALLOWED=NO build
+
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcodebuild -project MacScope.xcodeproj -scheme "MacScope AppStore" \
+  -configuration AppStoreDebug CODE_SIGNING_ALLOWED=NO build
+```
+
+Rollback: remove `MacScope.xcodeproj`, `project.yml`, the two entitlement files,
+`Packaging/Assets.xcassets`, and the distribution-policy source, then revert the
+three policy call sites. The existing Swift Package build remains independent.
+
 ## Direct distribution checklist
 
 1. Create and install a Developer ID Application certificate.

@@ -20,7 +20,7 @@ enum MemoryConsumerQuery {
 
 private enum MemoryConsumerFilter: String, CaseIterable, Identifiable {
     case all = "All"
-    case suggestions = "Suggestions"
+    case suggestions = "Recommended"
     case active = "Active"
     case protected = "Protected"
     var id: Self { self }
@@ -42,7 +42,10 @@ struct MemoryConsumersView: View {
     @State private var selectedIdentity: ProcessSnapshot.Identity?
     @State private var pendingTermination: ProcessSnapshot?
     @State private var pendingGroupTermination: ApplicationProcessGroup?
-    @State private var filter: MemoryConsumerFilter = .all
+    @State private var pendingBatchGroups: [ApplicationProcessGroup] = []
+    @State private var selectedRecommendationIDs: Set<String> = []
+    @State private var showsBatchConfirmation = false
+    @State private var filter: MemoryConsumerFilter = .suggestions
     @State private var presentation: MemoryConsumerPresentation = .applications
 
     init(
@@ -89,7 +92,7 @@ struct MemoryConsumersView: View {
                 let classification = assessment(for: group).classification
                 return switch filter {
                 case .all: true
-                case .suggestions: classification == .lowerImpact
+                case .suggestions: recommendationReason(for: group) != nil
                 case .active: classification == .active
                 case .protected: classification == .protected
                 }
@@ -99,6 +102,18 @@ struct MemoryConsumersView: View {
                     ? $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
                     : $0.residentBytes > $1.residentBytes
             }
+    }
+
+    private var recommendedGroups: [ApplicationProcessGroup] {
+        groups.filter { recommendationReason(for: $0) != nil }
+    }
+
+    private var selectedRecommendedGroups: [ApplicationProcessGroup] {
+        recommendedGroups.filter { selectedRecommendationIDs.contains($0.id) }
+    }
+
+    private var selectedRecommendedBytes: UInt64 {
+        clampedSum(selectedRecommendedGroups.map { assessment(for: $0).estimatedResidentBytes })
     }
 
     private var attributedBytes: UInt64 {
@@ -164,6 +179,18 @@ struct MemoryConsumersView: View {
                 Text("Ask \(group.name) to quit normally? The application can prompt for unsaved work. If macOS cannot identify it, MacScope will take no action.")
             }
         }
+        .alert("Quit Selected Applications?", isPresented: $showsBatchConfirmation) {
+            Button("Cancel", role: .cancel) { pendingBatchGroups = [] }
+            Button("Quit \(pendingBatchGroups.count) Applications", role: .destructive) {
+                let groups = pendingBatchGroups
+                let estimate = clampedSum(groups.map { assessment(for: $0).estimatedResidentBytes })
+                pendingBatchGroups = []
+                selectedRecommendationIDs = []
+                Task { await actionCoordinator.terminate(groups, estimatedResidentBytes: estimate) }
+            }
+        } message: {
+            Text("Ask the selected apps to quit normally? Apps may prompt to save work or cancel quitting. MacScope will not force quit them.")
+        }
     }
 
     private var summary: some View {
@@ -208,6 +235,27 @@ struct MemoryConsumersView: View {
                 }
             }
             .pickerStyle(.segmented)
+            if presentation == .applications, filter == .suggestions {
+                HStack {
+                    Button(selectedRecommendationIDs.isEmpty ? "Select All" : "Clear Selection") {
+                        if selectedRecommendationIDs.isEmpty {
+                            selectedRecommendationIDs = Set(recommendedGroups.map(\.id))
+                        } else {
+                            selectedRecommendationIDs = []
+                        }
+                    }
+                    .disabled(recommendedGroups.isEmpty || actionCoordinator.isMeasuring)
+                    Spacer()
+                    Text("\(selectedRecommendedGroups.count) selected · \(ByteFormatter.string(fromByteCount: selectedRecommendedBytes))")
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                    Button("Quit Selected…", role: .destructive) {
+                        pendingBatchGroups = selectedRecommendedGroups
+                        showsBatchConfirmation = !pendingBatchGroups.isEmpty
+                    }
+                    .disabled(selectedRecommendedGroups.isEmpty || actionCoordinator.isMeasuring)
+                }
+            }
             Text("Process totals do not equal system used memory because macOS also uses RAM for the kernel, wired/compressed memory, shared pages, and caches. Ending a task can lose unsaved work.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -259,6 +307,12 @@ struct MemoryConsumersView: View {
                 }
             } label: {
                 HStack(spacing: 10) {
+                    if filter == .suggestions {
+                        Toggle("Select \(group.name)", isOn: recommendationSelection(for: group))
+                            .labelsHidden()
+                            .toggleStyle(.checkbox)
+                            .accessibilityLabel("Select \(group.name) to quit")
+                    }
                     ProcessIconLoader.shared.image(for: group.applicationPath)
                         .resizable().frame(width: 22, height: 22)
                     VStack(alignment: .leading, spacing: 2) {
@@ -268,7 +322,13 @@ struct MemoryConsumersView: View {
                     }
                     Spacer()
                     Text(ByteFormatter.string(fromByteCount: group.residentBytes)).monospacedDigit()
-                    assessmentLabel(assessment(for: group))
+                    if let reason = recommendationReason(for: group) {
+                        Label("Recommended", systemImage: "sparkles")
+                            .help(reason)
+                            .accessibilityLabel("Recommended. \(reason)")
+                    } else {
+                        assessmentLabel(assessment(for: group))
+                    }
                     groupTerminationButton(group)
                 }
             }
@@ -335,6 +395,34 @@ struct MemoryConsumersView: View {
             name: group.name,
             assessments: group.processes.map(assessment(for:))
         )
+    }
+
+    private func recommendationReason(for group: ApplicationProcessGroup) -> String? {
+        MemoryReclaimClassifier.recommendationReason(
+            for: assessment(for: group),
+            residentBytes: group.residentBytes,
+            isApplication: group.applicationPath != nil
+        )
+    }
+
+    private func recommendationSelection(for group: ApplicationProcessGroup) -> Binding<Bool> {
+        Binding(
+            get: { selectedRecommendationIDs.contains(group.id) },
+            set: { isSelected in
+                if isSelected {
+                    selectedRecommendationIDs.insert(group.id)
+                } else {
+                    selectedRecommendationIDs.remove(group.id)
+                }
+            }
+        )
+    }
+
+    private func clampedSum(_ values: [UInt64]) -> UInt64 {
+        values.reduce(0) { total, value in
+            let addition = total.addingReportingOverflow(value)
+            return addition.overflow ? .max : addition.partialValue
+        }
     }
 
     private var currentMemoryStats: MemoryStats? {

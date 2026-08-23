@@ -29,7 +29,11 @@ final class NetworkViewModel: ObservableObject {
             historyBuffer.append(stats)
             history = Array(historyBuffer)
             state = .loaded(stats)
-            processTraffic = await processNetworkMonitor.currentUsage()
+            if DistributionChannel.allowsPerProcessNetwork {
+                processTraffic = await processNetworkMonitor.currentUsage()
+            } else {
+                processTraffic = .unsupported(reason: "Per-process network attribution is unavailable in the Mac App Store sandbox.")
+            }
         } catch {
             state = .failed(error.localizedDescription)
         }
