@@ -5,11 +5,21 @@ project_dir="${0:A:h:h}"
 build_dir="$project_dir/.build"
 dist_dir="$project_dir/dist"
 final_app_dir="$dist_dir/MacScope.app"
-final_zip="$dist_dir/MacScope-v1.0.0-test.zip"
+marketing_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$project_dir/Packaging/Info.plist")"
+build_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$project_dir/Packaging/Info.plist")"
+if [[ ! "$marketing_version" =~ '^[0-9]+\.[0-9]+\.[0-9]+$' || ! "$build_version" =~ '^[0-9]+$' ]]; then
+  echo "Invalid bundle version metadata." >&2
+  exit 1
+fi
+artifact_name="MacScope-v${marketing_version}-test.zip"
+final_zip="$dist_dir/$artifact_name"
+dmg_name="MacScope-v${marketing_version}-test.dmg"
+final_dmg="$dist_dir/$dmg_name"
 stage_root="$(mktemp -d /private/tmp/MacScope-package.XXXXXX)"
 trap 'rm -rf "$stage_root"' EXIT
 app_dir="$stage_root/MacScope.app"
 contents_dir="$app_dir/Contents"
+daemon_dir="$contents_dir/Library/LaunchDaemons"
 asset_catalog="$build_dir/Assets.xcassets"
 iconset_dir="$asset_catalog/AppIcon.appiconset"
 icon_master="$build_dir/MacScopeIcon.png"
@@ -21,9 +31,18 @@ export SWIFTPM_MODULECACHE_OVERRIDE="$build_dir/swift-module-cache"
 swift build -c release --disable-sandbox --jobs 2 --cache-path "$build_dir/cache"
 binary_dir="$(swift build -c release --disable-sandbox --show-bin-path --cache-path "$build_dir/cache")"
 
-mkdir -p "$contents_dir/MacOS" "$contents_dir/Resources" "$iconset_dir"
+mkdir -p "$contents_dir/MacOS" "$contents_dir/Resources" "$daemon_dir" "$iconset_dir"
 cp "$binary_dir/MacScope" "$contents_dir/MacOS/MacScope"
+cp "$binary_dir/MacScopeGPUHelper" "$daemon_dir/MacScopeGPUHelper"
+cp "$project_dir/Packaging/com.macscope.GPUMetricsHelper.plist" "$daemon_dir/com.macscope.GPUMetricsHelper.plist"
 cp "$project_dir/Packaging/Info.plist" "$contents_dir/Info.plist"
+
+team_identifier="$(codesign -dvv "$contents_dir/MacOS/MacScope" 2>&1 | sed -n 's/^TeamIdentifier=//p')"
+if [[ -n "$team_identifier" && "$team_identifier" != "not set" ]]; then
+  client_requirement="identifier \"com.macscope.app\" and anchor apple generic and certificate leaf[subject.OU] = \"$team_identifier\""
+  /usr/libexec/PlistBuddy -c "Set :EnvironmentVariables:MACSCOPE_CLIENT_REQUIREMENT $client_requirement" \
+    "$daemon_dir/com.macscope.GPUMetricsHelper.plist"
+fi
 
 swift "$project_dir/Packaging/render-icon.swift" "$icon_master"
 cp "$project_dir/Packaging/AppIconContents.json" "$iconset_dir/Contents.json"
@@ -46,13 +65,24 @@ codesign --force --deep --sign - "$app_dir"
 codesign --verify --deep --strict --verbose=2 "$app_dir"
 plutil -lint "$contents_dir/Info.plist"
 
-stage_zip="$stage_root/MacScope-v1.0.0-test.zip"
-ditto -c -k --keepParent "$app_dir" "$stage_zip"
+stage_zip="$stage_root/$artifact_name"
+ditto -c -k --keepParent --norsrc "$app_dir" "$stage_zip"
+stage_dmg="$stage_root/$dmg_name"
+hdiutil create \
+  -volname "MacScope ${marketing_version} Test" \
+  -srcfolder "$app_dir" \
+  -ov \
+  -format UDZO \
+  "$stage_dmg" \
+  >/dev/null
 
 mkdir -p "$dist_dir"
 rm -rf "$final_app_dir"
-ditto "$app_dir" "$final_app_dir"
+ditto --norsrc "$app_dir" "$final_app_dir"
+xattr -cr "$final_app_dir"
 cp "$stage_zip" "$final_zip"
+cp "$stage_dmg" "$final_dmg"
 
 echo "$final_app_dir"
 echo "$final_zip"
+echo "$final_dmg"

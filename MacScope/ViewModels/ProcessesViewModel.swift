@@ -39,6 +39,8 @@ enum ProcessQuery {
             $0.name.localizedCaseInsensitiveContains(query)
                 || String($0.pid).contains(query)
                 || $0.bundleIdentifier?.localizedCaseInsensitiveContains(query) == true
+                || $0.codeSigning?.signingIdentifier?.localizedCaseInsensitiveContains(query) == true
+                || $0.codeSigning?.teamIdentifier?.localizedCaseInsensitiveContains(query) == true
         }
 
         return filtered.sorted { lhs, rhs in
@@ -81,21 +83,26 @@ final class ProcessesViewModel: ObservableObject {
     @Published var selection: ProcessSnapshot.Identity?
     @Published var presentationMode: ProcessPresentationMode = .applications
     @Published private(set) var forceQuitEligibleIdentity: ProcessSnapshot.Identity?
-    @Published var actionMessage: String?
+    @Published private(set) var lastActionResult: ProcessActionResult?
+    @Published private(set) var processesBeingTerminated: Set<ProcessSnapshot.Identity> = []
+    @Published private(set) var groupsBeingTerminated: Set<String> = []
 
     private let monitor: any ProcessMonitorProtocol
     private let terminationService: ProcessTerminationService
     private let terminationPolicy: ProcessTerminationPolicy
+    private let applicationQuitService: ApplicationQuitService
     private var histories: [ProcessSnapshot.Identity: ProcessHistory] = [:]
 
     init(
         monitor: any ProcessMonitorProtocol = ProcessMonitor(),
         terminationService: ProcessTerminationService = ProcessTerminationService(),
-        terminationPolicy: ProcessTerminationPolicy = ProcessTerminationPolicy()
+        terminationPolicy: ProcessTerminationPolicy = ProcessTerminationPolicy(),
+        applicationQuitService: ApplicationQuitService = ApplicationQuitService()
     ) {
         self.monitor = monitor
         self.terminationService = terminationService
         self.terminationPolicy = terminationPolicy
+        self.applicationQuitService = applicationQuitService
     }
 
     var visibleProcesses: [ProcessSnapshot] {
@@ -142,6 +149,10 @@ final class ProcessesViewModel: ObservableObject {
         }
     }
 
+    func resetSamplingBaseline() async {
+        await monitor.resetBaseline()
+    }
+
     func refreshContinuously(every interval: Duration = .seconds(2)) async {
         while !Task.isCancelled {
             await refresh()
@@ -168,34 +179,58 @@ final class ProcessesViewModel: ObservableObject {
     }
 
     func terminationDecision(for process: ProcessSnapshot) -> ProcessTerminationDecision {
-        terminationPolicy.decision(for: process)
+        guard DistributionChannel.allowsProcessActions else {
+            return .denied(reason: "Process actions are unavailable in the Mac App Store sandbox.")
+        }
+        return terminationPolicy.decision(for: process)
     }
 
     func terminableProcesses(in group: ApplicationProcessGroup) -> [ProcessSnapshot] {
         group.processes.filter {
-            if case .allowed = terminationPolicy.decision(for: $0) { return true }
+            if case .allowed = terminationDecision(for: $0) { return true }
             return false
         }
     }
 
-    func terminate(_ process: ProcessSnapshot) async {
-        actionMessage = nil
+    @discardableResult
+    func terminate(_ process: ProcessSnapshot) async -> ProcessActionResult {
+        guard !processesBeingTerminated.contains(process.identity) else {
+            return result(process.name, .terminateProcess, .noAction, "An action is already in progress.")
+        }
+        processesBeingTerminated.insert(process.identity)
+        defer { processesBeingTerminated.remove(process.identity) }
         do {
             try await terminationService.send(.terminate, to: process)
-            actionMessage = "Termination request sent to \(process.name)."
             try? await Task.sleep(for: .seconds(1))
             await refresh()
             if self.process(with: process.identity) != nil {
                 forceQuitEligibleIdentity = process.identity
+                return result(process.name, .terminateProcess, .stillRunning, "The normal termination request was sent, but the process is still running.")
             }
+            return result(process.name, .terminateProcess, .completed, "The process exited after a normal termination request.")
         } catch {
-            actionMessage = error.localizedDescription
+            return result(process.name, .terminateProcess, .failed, error.localizedDescription)
         }
     }
 
-    func terminate(_ group: ApplicationProcessGroup) async {
-        actionMessage = nil
+    @discardableResult
+    func terminate(_ group: ApplicationProcessGroup) async -> ProcessActionResult {
+        guard !groupsBeingTerminated.contains(group.id) else {
+            return result(group.name, .terminateGroup, .noAction, "An action is already in progress.")
+        }
+        groupsBeingTerminated.insert(group.id)
+        defer { groupsBeingTerminated.remove(group.id) }
         let eligible = terminableProcesses(in: group)
+        if GroupTerminationMode.mode(for: group) == .quitApplication {
+            let requested = applicationQuitService.requestQuit(processes: eligible)
+            guard requested > 0 else {
+                return result(group.name, .quitApplication, .noAction, "macOS could not identify the running application, so no signal was sent.")
+            }
+            let exited = await waitForExit(eligible.map(\.identity), timeoutSeconds: 5)
+            return exited
+                ? result(group.name, .quitApplication, .completed, "The application exited after a normal quit request.")
+                : result(group.name, .quitApplication, .stillRunning, "The application is still running. It may be showing an unsaved-work prompt or may have cancelled quit.")
+        }
         var sent = 0
         var failed = 0
 
@@ -212,21 +247,43 @@ final class ProcessesViewModel: ObservableObject {
         var parts = ["Sent termination requests to \(sent) \(sent == 1 ? "process" : "processes") in \(group.name)."]
         if protected > 0 { parts.append("Skipped \(protected) protected.") }
         if failed > 0 { parts.append("\(failed) had already exited or could not be terminated.") }
-        actionMessage = parts.joined(separator: " ")
         try? await Task.sleep(for: .seconds(1))
         await refresh()
+        let stillRunning = eligible.contains { process(with: $0.identity) != nil }
+        return result(group.name, .terminateGroup, stillRunning ? .stillRunning : .completed, parts.joined(separator: " "))
     }
 
-    func forceQuit(_ process: ProcessSnapshot) async {
-        actionMessage = nil
+    @discardableResult
+    func forceQuit(_ process: ProcessSnapshot) async -> ProcessActionResult {
         do {
             try await terminationService.send(.kill, to: process)
-            actionMessage = "Force Quit request sent to \(process.name)."
             forceQuitEligibleIdentity = nil
             await refresh()
+            return result(process.name, .forceQuit, self.process(with: process.identity) == nil ? .completed : .stillRunning,
+                          self.process(with: process.identity) == nil ? "The process exited." : "The process still appears in the latest sample.")
         } catch {
-            actionMessage = error.localizedDescription
+            return result(process.name, .forceQuit, .failed, error.localizedDescription)
         }
+    }
+
+    func clearActionResult() { lastActionResult = nil }
+
+    private func waitForExit(_ identities: [ProcessSnapshot.Identity], timeoutSeconds: Int) async -> Bool {
+        for _ in 0..<timeoutSeconds {
+            try? await Task.sleep(for: .seconds(1))
+            await refresh()
+            if identities.allSatisfy({ process(with: $0) == nil }) { return true }
+        }
+        return false
+    }
+
+    private func result(
+        _ target: String, _ action: ProcessActionResult.Action,
+        _ outcome: ProcessActionResult.Outcome, _ message: String
+    ) -> ProcessActionResult {
+        let value = ProcessActionResult(target: target, action: action, outcome: outcome, message: message)
+        lastActionResult = value
+        return value
     }
 
     private func appendHistory(from snapshots: [ProcessSnapshot]) {

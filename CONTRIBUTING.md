@@ -35,3 +35,7 @@ Keep pull requests focused and describe:
 - relevant limitations or follow-up work.
 
 By contributing, you agree that your contribution is licensed under the GNU General Public License, version 3 or later (`GPL-3.0-or-later`).
+
+## Maintainer documentation
+
+Release maintainers should follow [`docs/maintainers/RELEASING.md`](docs/maintainers/RELEASING.md) for signing, notarization, Gatekeeper, hardware, accessibility, and performance gates. Signing credentials and private keys must never be committed.

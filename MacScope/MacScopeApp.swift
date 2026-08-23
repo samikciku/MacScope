@@ -9,15 +9,18 @@ struct MacScopeApp: App {
             RootContainerView(settings: appState.settings)
                 .environmentObject(appState)
                 .frame(minWidth: 880, minHeight: 560)
-                .task { appState.startMonitoring() }
+                .task {
+                    appState.startMonitoring()
+                    await AppStoreSandboxAudit.runIfRequested()
+                }
         }
         .defaultSize(width: 1_080, height: 720)
         .commands {
             CommandMenu("Navigate") {
-                ForEach(Array(AppSection.allCases.enumerated()), id: \.element) { index, section in
+                ForEach(Array(AppSection.primaryNavigation.enumerated()), id: \.element) { index, section in
                     if index < 9 {
                         Button(section.title) {
-                            appState.selection = section
+                            appState.navigate(to: section)
                         }
                         .keyboardShortcut(
                             KeyEquivalent(Character(String(index + 1))),

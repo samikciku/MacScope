@@ -2,6 +2,8 @@ import SwiftUI
 
 struct MemoryView: View {
     @ObservedObject var viewModel: MemoryViewModel
+    @ObservedObject var processesViewModel: ProcessesViewModel
+    @State private var showsConsumers = false
 
     var body: some View {
         Group {
@@ -19,13 +21,44 @@ struct MemoryView: View {
             }
         }
         .navigationTitle("Memory")
+        .sheet(isPresented: $showsConsumers) {
+            MemoryConsumersView(
+                systemUsedBytes: currentUsedBytes,
+                memoryViewModel: viewModel,
+                processesViewModel: processesViewModel
+            )
+            .frame(minWidth: 760, minHeight: 580)
+        }
     }
 
     private func memoryContent(_ stats: MemoryStats) -> some View {
         ScrollView {
             Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 14) {
                 metricRow("Total", stats.totalBytes)
-                metricRow("Used", stats.usedBytes)
+                if DistributionChannel.allowsProcessInspection {
+                    GridRow {
+                    Button {
+                        showsConsumers = true
+                    } label: {
+                        HStack {
+                            Text("Used")
+                            Spacer()
+                            Text(ByteFormatter.string(fromByteCount: stats.usedBytes))
+                                .monospacedDigit()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .gridCellColumns(2)
+                    .accessibilityLabel("Used memory, \(ByteFormatter.string(fromByteCount: stats.usedBytes))")
+                    .accessibilityHint("Open processes using memory")
+                    }
+                } else {
+                    metricRow("Used", stats.usedBytes)
+                }
                 metricRow("Available", stats.availableBytes)
                 Divider()
                 metricRow("Free", stats.freeBytes)
@@ -43,9 +76,16 @@ struct MemoryView: View {
                 swapRows(stats.swap)
                 GridRow {
                     Text("Memory pressure")
-                    Text(stats.pressure.title)
-                        .foregroundStyle(pressureColor(stats.pressure))
-                        .accessibilityLabel("Memory pressure \(stats.pressure.title)")
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label(stats.pressure.title, systemImage: pressureIcon(stats.pressure))
+                            .foregroundStyle(pressureColor(stats.pressure))
+                        Text(stats.pressure.guidance)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Memory pressure \(stats.pressure.title). \(stats.pressure.guidance)")
                 }
             }
             .padding(24)
@@ -60,12 +100,26 @@ struct MemoryView: View {
         }
     }
 
+    private var currentUsedBytes: UInt64 {
+        guard case .loaded(let stats) = viewModel.state else { return 0 }
+        return stats.usedBytes
+    }
+
     private func pressureColor(_ pressure: MemoryStats.Pressure) -> Color {
         switch pressure {
         case .normal: .green
         case .warning: .orange
         case .critical: .red
         case .unavailable: .secondary
+        }
+    }
+
+    private func pressureIcon(_ pressure: MemoryStats.Pressure) -> String {
+        switch pressure {
+        case .normal: "checkmark.circle.fill"
+        case .warning: "exclamationmark.triangle.fill"
+        case .critical: "exclamationmark.octagon.fill"
+        case .unavailable: "clock"
         }
     }
 

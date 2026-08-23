@@ -11,6 +11,11 @@ actor ProcessNetworkMonitor {
     private var previous: [Int32: Counter] = [:]
     private var previousTime: Date?
 
+    func resetBaseline() {
+        previous.removeAll(keepingCapacity: true)
+        previousTime = nil
+    }
+
     func currentUsage() -> MetricAvailability<[ProcessNetworkUsage]> {
         let process = Process()
         let output = Pipe()

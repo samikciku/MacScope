@@ -52,6 +52,12 @@ struct AlertsView: View {
                     .font(.footnote).foregroundStyle(.secondary)
             }
 
+            Section("Applications") {
+                Toggle("Alert on sustained resource hogs", isOn: $settings.hogAlertsEnabled)
+                Text("Uses the configurable application thresholds on the Resource Hogs screen. At most five new application alerts are emitted per evaluation.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+
             Section("Timing") {
                 Picker("Duration", selection: $settings.alertDuration) {
                     Text("30 seconds").tag(TimeInterval(30))
@@ -116,6 +122,7 @@ struct AlertsView: View {
         case .thermal: "thermometer.high"
         case .diskCapacity: "internaldrive.fill"
         case .battery: "battery.25percent"
+        case .resourceHog: "flame"
         }
     }
 

@@ -49,6 +49,14 @@ final class MonitoringSettings: ObservableObject {
     private static let compactOpacityKey = "compact.opacity"
     private static let compactShowGPUKey = "compact.showGPU"
     private static let compactShowSwapKey = "compact.showSwap"
+    private static let hogMemoryThresholdKey = "resourceHogs.memoryThresholdGB"
+    private static let hogCPUThresholdKey = "resourceHogs.cpuThresholdPercent"
+    private static let hogDiskThresholdKey = "resourceHogs.diskThresholdMBps"
+    private static let hogNetworkThresholdKey = "resourceHogs.networkThresholdMBps"
+    private static let hogPowerThresholdKey = "resourceHogs.powerThresholdWatts"
+    private static let hogAlertsEnabledKey = "resourceHogs.alertsEnabled"
+    private static let experimentalGPUEnabledKey = "gpu.experimental.enabled"
+    private static let advancedGPUHelperEnabledKey = "gpu.helper.enabled"
 
     private let defaults: UserDefaults
 
@@ -83,6 +91,21 @@ final class MonitoringSettings: ObservableObject {
     @Published var compactOpacity: Double { didSet { persist(compactOpacity, key: Self.compactOpacityKey) } }
     @Published var compactShowGPU: Bool { didSet { persist(compactShowGPU, key: Self.compactShowGPUKey) } }
     @Published var compactShowSwap: Bool { didSet { persist(compactShowSwap, key: Self.compactShowSwapKey) } }
+    @Published var hogMemoryThresholdGB: Double { didSet { persist(hogMemoryThresholdGB, key: Self.hogMemoryThresholdKey) } }
+    @Published var hogCPUThresholdPercent: Double { didSet { persist(hogCPUThresholdPercent, key: Self.hogCPUThresholdKey) } }
+    @Published var hogDiskThresholdMBps: Double { didSet { persist(hogDiskThresholdMBps, key: Self.hogDiskThresholdKey) } }
+    @Published var hogNetworkThresholdMBps: Double { didSet { persist(hogNetworkThresholdMBps, key: Self.hogNetworkThresholdKey) } }
+    @Published var hogPowerThresholdWatts: Double { didSet { persist(hogPowerThresholdWatts, key: Self.hogPowerThresholdKey) } }
+    @Published var hogAlertsEnabled: Bool { didSet { persist(hogAlertsEnabled, key: Self.hogAlertsEnabledKey) } }
+    @Published var experimentalGPUEnabled: Bool {
+        didSet {
+            persist(experimentalGPUEnabled, key: Self.experimentalGPUEnabledKey)
+            if !experimentalGPUEnabled { advancedGPUHelperEnabled = false }
+        }
+    }
+    @Published var advancedGPUHelperEnabled: Bool {
+        didSet { persist(advancedGPUHelperEnabled, key: Self.advancedGPUHelperEnabledKey) }
+    }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -107,6 +130,14 @@ final class MonitoringSettings: ObservableObject {
         compactOpacity = Self.storedDouble(defaults, key: Self.compactOpacityKey, fallback: 0.94)
         compactShowGPU = defaults.bool(forKey: Self.compactShowGPUKey)
         compactShowSwap = defaults.object(forKey: Self.compactShowSwapKey) as? Bool ?? true
+        hogMemoryThresholdGB = Self.storedDouble(defaults, key: Self.hogMemoryThresholdKey, fallback: 8)
+        hogCPUThresholdPercent = Self.storedDouble(defaults, key: Self.hogCPUThresholdKey, fallback: 300)
+        hogDiskThresholdMBps = Self.storedDouble(defaults, key: Self.hogDiskThresholdKey, fallback: 100)
+        hogNetworkThresholdMBps = Self.storedDouble(defaults, key: Self.hogNetworkThresholdKey, fallback: 50)
+        hogPowerThresholdWatts = Self.storedDouble(defaults, key: Self.hogPowerThresholdKey, fallback: 20)
+        hogAlertsEnabled = defaults.bool(forKey: Self.hogAlertsEnabledKey)
+        experimentalGPUEnabled = defaults.bool(forKey: Self.experimentalGPUEnabledKey)
+        advancedGPUHelperEnabled = defaults.bool(forKey: Self.advancedGPUHelperEnabledKey)
     }
 
     var processRefreshDuration: Duration {
@@ -161,6 +192,16 @@ final class MonitoringSettings: ObservableObject {
             cooldown: alertCooldown,
             hysteresis: 0.05,
             direction: .below
+        )
+    }
+
+    var resourceHogThresholds: ResourceHogThresholds {
+        ResourceHogThresholds(
+            memoryBytes: UInt64(Swift.max(0.25, hogMemoryThresholdGB) * 1_000_000_000),
+            cpuPercent: Swift.max(10, hogCPUThresholdPercent),
+            diskBytesPerSecond: Swift.max(1, hogDiskThresholdMBps) * 1_000_000,
+            networkBytesPerSecond: Swift.max(1, hogNetworkThresholdMBps) * 1_000_000,
+            powerWatts: Swift.max(0.1, hogPowerThresholdWatts)
         )
     }
 

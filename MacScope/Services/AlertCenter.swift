@@ -10,6 +10,9 @@ final class AlertCenter: ObservableObject {
     private var systemEventBuffer = RingBuffer<SystemEvent>(capacity: 500)
     private var previousThermalState: ThermalStats.State?
     private var previousMemoryPressure: MemoryStats.Pressure?
+    private var previousBatteryPowerSource: BatteryStats.PowerSource?
+    private var previousBatteryCharging: Bool?
+    private var previousLowPowerMode: Bool?
 
     func record(_ event: ResourceAlertEvent, postNotification: Bool) {
         eventBuffer.append(event)
@@ -54,15 +57,43 @@ final class AlertCenter: ObservableObject {
     }
 
     func observeThermalState(_ stats: ThermalStats) {
-        defer { previousThermalState = stats.state }
-        guard let previousThermalState, previousThermalState != stats.state else { return }
-        appendSystemEvent(.init(
-            timestamp: stats.timestamp,
-            kind: .thermalTransition,
-            severity: severity(for: stats.state),
-            title: "Thermal state: \(stats.state.title)",
-            message: "System thermal pressure changed from \(previousThermalState.title.lowercased()) to \(stats.state.title.lowercased())."
-        ))
+        if let previousThermalState, previousThermalState != stats.state {
+            appendSystemEvent(.init(
+                timestamp: stats.timestamp,
+                kind: .thermalTransition,
+                severity: severity(for: stats.state),
+                title: "Thermal state: \(stats.state.title)",
+                message: "System thermal pressure changed from \(previousThermalState.title.lowercased()) to \(stats.state.title.lowercased())."
+            ))
+        }
+        previousThermalState = stats.state
+
+        if let previousLowPowerMode, previousLowPowerMode != stats.lowPowerModeEnabled {
+            appendSystemEvent(.init(
+                timestamp: stats.timestamp,
+                kind: .lowPowerModeTransition,
+                severity: .information,
+                title: stats.lowPowerModeEnabled ? "Low Power Mode enabled" : "Low Power Mode disabled",
+                message: "Low Power Mode was \(stats.lowPowerModeEnabled ? "enabled" : "disabled")."
+            ))
+        }
+        previousLowPowerMode = stats.lowPowerModeEnabled
+    }
+
+    func observeBatteryState(_ stats: BatteryStats) {
+        if let previousBatteryPowerSource,
+           let previousBatteryCharging,
+           previousBatteryPowerSource != stats.powerSource || previousBatteryCharging != stats.isCharging {
+            appendSystemEvent(.init(
+                timestamp: stats.timestamp,
+                kind: .batteryPowerTransition,
+                severity: .information,
+                title: "Power source: \(stats.powerSource.rawValue)",
+                message: "Battery power changed from \(batteryDescription(source: previousBatteryPowerSource, charging: previousBatteryCharging)) to \(batteryDescription(source: stats.powerSource, charging: stats.isCharging))."
+            ))
+        }
+        previousBatteryPowerSource = stats.powerSource
+        previousBatteryCharging = stats.isCharging
     }
 
     func observeMemoryPressure(_ pressure: MemoryStats.Pressure, at timestamp: Date) {
@@ -102,5 +133,9 @@ final class AlertCenter: ObservableObject {
         case .warning: .warning
         case .critical: .critical
         }
+    }
+
+    private func batteryDescription(source: BatteryStats.PowerSource, charging: Bool) -> String {
+        "\(source.rawValue.lowercased()) (\(charging ? "charging" : "not charging"))"
     }
 }

@@ -3,6 +3,9 @@ import Foundation
 @MainActor
 final class AppState: ObservableObject {
     @Published var selection: AppSection? = .dashboard
+    @Published var applicationsTab: ApplicationsTab = .running
+    @Published var performanceTab: PerformanceTab = .memory
+    @Published var eventsTab: EventsTab = .timeline
     let memoryViewModel: MemoryViewModel
     let cpuViewModel: CPUViewModel
     let processesViewModel: ProcessesViewModel
@@ -14,7 +17,9 @@ final class AppState: ObservableObject {
     let batteryViewModel: BatteryViewModel
     let thermalViewModel: ThermalViewModel
     let alertCenter: AlertCenter
+    let monitoringDiagnostics: MonitoringDiagnostics
     private let alertEvaluator: ResourceAlertEvaluator
+    private let resourceHogAlertEvaluator: ResourceHogAlertEvaluator
     private var monitoringCoordinator: MonitoringCoordinator?
 
     init(
@@ -29,7 +34,9 @@ final class AppState: ObservableObject {
         batteryViewModel: BatteryViewModel = BatteryViewModel(),
         thermalViewModel: ThermalViewModel = ThermalViewModel(),
         alertCenter: AlertCenter = AlertCenter(),
-        alertEvaluator: ResourceAlertEvaluator = ResourceAlertEvaluator()
+        monitoringDiagnostics: MonitoringDiagnostics = MonitoringDiagnostics(),
+        alertEvaluator: ResourceAlertEvaluator = ResourceAlertEvaluator(),
+        resourceHogAlertEvaluator: ResourceHogAlertEvaluator = ResourceHogAlertEvaluator()
     ) {
         self.memoryViewModel = memoryViewModel
         self.cpuViewModel = cpuViewModel
@@ -42,7 +49,19 @@ final class AppState: ObservableObject {
         self.batteryViewModel = batteryViewModel
         self.thermalViewModel = thermalViewModel
         self.alertCenter = alertCenter
+        self.monitoringDiagnostics = monitoringDiagnostics
         self.alertEvaluator = alertEvaluator
+        self.resourceHogAlertEvaluator = resourceHogAlertEvaluator
+        if !DistributionChannel.allowsExperimentalGPU {
+            settings.experimentalGPUEnabled = false
+        }
+        if !DistributionChannel.allowsPrivilegedGPUHelper {
+            settings.advancedGPUHelperEnabled = false
+        }
+        gpuViewModel.enforceAllowedSources(
+            experimentalEnabled: settings.experimentalGPUEnabled && DistributionChannel.allowsExperimentalGPU,
+            helperEnabled: settings.advancedGPUHelperEnabled && DistributionChannel.allowsPrivilegedGPUHelper
+        )
     }
 
     func startMonitoring() {
@@ -59,7 +78,9 @@ final class AppState: ObservableObject {
                 thermalViewModel: thermalViewModel,
                 settings: settings,
                 alertCenter: alertCenter,
-                alertEvaluator: alertEvaluator
+                alertEvaluator: alertEvaluator,
+                resourceHogAlertEvaluator: resourceHogAlertEvaluator,
+                diagnostics: monitoringDiagnostics
             )
         }
         monitoringCoordinator?.start()
@@ -68,19 +89,90 @@ final class AppState: ObservableObject {
     func refreshAll() async {
         async let memory: Void = memoryViewModel.refresh()
         async let cpu: Void = cpuViewModel.refresh()
-        async let processes: Void = processesViewModel.refresh()
         async let gpu: Void = gpuViewModel.refresh()
         async let system: Void = systemViewModel.refresh()
         async let disk: Void = diskViewModel.refresh()
         async let network: Void = networkViewModel.refresh()
         async let battery: Void = batteryViewModel.refresh()
         async let thermal: Void = thermalViewModel.refresh()
-        _ = await (memory, cpu, processes, gpu, system, disk, network, battery, thermal)
+        if DistributionChannel.allowsProcessInspection {
+            await processesViewModel.refresh()
+        }
+        _ = await (memory, cpu, gpu, system, disk, network, battery, thermal)
+    }
+
+    func navigate(to section: AppSection) {
+        let route = AppRoute.resolve(section)
+        selection = route.parent
+        switch route.subsection {
+        case .applications(let tab): applicationsTab = tab
+        case .performance(let tab): performanceTab = tab
+        case .events(let tab): eventsTab = tab
+        case nil: break
+        }
+    }
+}
+
+enum ApplicationsTab: String, CaseIterable, Identifiable, Sendable {
+    case running = "Running"
+    case resourceHogs = "Resource Hogs"
+    case macScope = "MacScope"
+    var id: Self { self }
+}
+
+enum PerformanceTab: String, CaseIterable, Identifiable, Sendable {
+    case memory = "Memory"
+    case cpu = "CPU"
+    case gpu = "GPU"
+    case energy = "Energy"
+    case thermal = "Thermal"
+    case battery = "Battery"
+    var id: Self { self }
+
+    static var availableCases: [Self] {
+        DistributionChannel.allowsProcessInspection ? allCases : allCases.filter { $0 != .energy }
+    }
+}
+
+enum EventsTab: String, CaseIterable, Identifiable, Sendable {
+    case timeline = "Timeline"
+    case alertRules = "Alert Rules"
+    var id: Self { self }
+}
+
+enum AppSubsection: Equatable, Sendable {
+    case applications(ApplicationsTab)
+    case performance(PerformanceTab)
+    case events(EventsTab)
+}
+
+struct AppRoute: Equatable, Sendable {
+    let parent: AppSection
+    let subsection: AppSubsection?
+
+    static func resolve(_ section: AppSection) -> AppRoute {
+        switch section {
+        case .processes: .init(parent: .applications, subsection: .applications(.running))
+        case .resourceHogs: .init(parent: .applications, subsection: .applications(.resourceHogs))
+        case .selfMonitoring: .init(parent: .applications, subsection: .applications(.macScope))
+        case .memory: .init(parent: .performance, subsection: .performance(.memory))
+        case .cpu: .init(parent: .performance, subsection: .performance(.cpu))
+        case .gpu: .init(parent: .performance, subsection: .performance(.gpu))
+        case .energy: .init(parent: .performance, subsection: .performance(.energy))
+        case .thermal: .init(parent: .performance, subsection: .performance(.thermal))
+        case .battery: .init(parent: .performance, subsection: .performance(.battery))
+        case .timeline: .init(parent: .events, subsection: .events(.timeline))
+        case .alerts: .init(parent: .events, subsection: .events(.alertRules))
+        default: .init(parent: section, subsection: nil)
+        }
     }
 }
 
 enum AppSection: String, CaseIterable, Identifiable, Sendable {
     case dashboard
+    case applications
+    case performance
+    case events
     case processes
     case memory
     case cpu
@@ -92,6 +184,7 @@ enum AppSection: String, CaseIterable, Identifiable, Sendable {
     case thermal
     case timeline
     case energy
+    case resourceHogs
     case selfMonitoring
     case alerts
     case settings
@@ -100,18 +193,22 @@ enum AppSection: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .dashboard: "Dashboard"
+        case .dashboard: "Overview"
+        case .applications: "Applications"
+        case .performance: "Performance"
+        case .events: "Events"
         case .processes: "Processes"
         case .memory: "Memory"
         case .cpu: "CPU"
         case .gpu: "GPU"
         case .system: "System"
-        case .disk: "Disk"
+        case .disk: "Storage"
         case .network: "Network"
         case .battery: "Battery"
         case .thermal: "Thermal"
         case .timeline: "Timeline"
         case .energy: "Energy"
+        case .resourceHogs: "Resource Hogs"
         case .selfMonitoring: "MacScope"
         case .alerts: "Alerts"
         case .settings: "Settings"
@@ -121,6 +218,9 @@ enum AppSection: String, CaseIterable, Identifiable, Sendable {
     var systemImage: String {
         switch self {
         case .dashboard: "gauge.with.dots.needle.67percent"
+        case .applications: "square.stack.3d.up"
+        case .performance: "waveform.path.ecg"
+        case .events: "clock.badge.exclamationmark"
         case .processes: "list.bullet.rectangle"
         case .memory: "memorychip"
         case .cpu: "cpu"
@@ -132,9 +232,17 @@ enum AppSection: String, CaseIterable, Identifiable, Sendable {
         case .thermal: "thermometer.medium"
         case .timeline: "clock.arrow.circlepath"
         case .energy: "bolt"
+        case .resourceHogs: "flame"
         case .selfMonitoring: "scope"
         case .alerts: "bell.badge"
         case .settings: "gearshape"
         }
+    }
+
+    static var primaryNavigation: [AppSection] {
+        var sections: [AppSection] = [.dashboard]
+        if DistributionChannel.allowsProcessInspection { sections.append(.applications) }
+        sections += [.performance, .disk, .network, .events, .settings]
+        return sections
     }
 }

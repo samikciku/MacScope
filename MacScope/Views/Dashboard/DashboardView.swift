@@ -15,34 +15,48 @@ struct DashboardView: View {
 
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("MacScope explains what is slowing down your Mac and helps you act safely.")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                HealthSummaryCard(assessment: healthAssessment) {
+                    onNavigate(healthAssessment.destination)
+                }
+                LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
                 MetricCard(title: "Memory", value: memorySummary, systemImage: "memorychip") { onNavigate(.memory) }
                 MetricCard(title: "CPU", value: cpuSummary, systemImage: "cpu") { onNavigate(.cpu) }
                 MetricCard(title: "GPU", value: gpuSummary, systemImage: "display") { onNavigate(.gpu) }
-                MetricCard(title: "Processes", value: processSummary, systemImage: "list.bullet.rectangle") { onNavigate(.processes) }
+                if DistributionChannel.allowsProcessInspection {
+                    MetricCard(title: "Processes", value: processSummary, systemImage: "list.bullet.rectangle") { onNavigate(.processes) }
+                }
                 MetricCard(title: "Disk", value: diskSummary, systemImage: "internaldrive") { onNavigate(.disk) }
                 MetricCard(title: "Network", value: networkSummary, systemImage: "network") { onNavigate(.network) }
                 MetricCard(title: "Battery", value: batterySummary, systemImage: "battery.75percent") { onNavigate(.battery) }
                 MetricCard(title: "Thermal", value: thermalSummary, systemImage: "thermometer.medium") { onNavigate(.thermal) }
-                ProcessRankingCard(
-                    title: "Top memory consumers",
-                    processes: topMemoryProcesses,
-                    value: { ByteFormatter.string(fromByteCount: $0.residentBytes) },
-                    onSelect: openProcess
-                )
+                if DistributionChannel.allowsProcessInspection {
+                    ProcessRankingCard(
+                        title: "Top memory consumers",
+                        processes: topMemoryProcesses,
+                        value: { ByteFormatter.string(fromByteCount: $0.residentBytes) },
+                        onSelect: openProcess
+                    )
+                }
                 RecentEventsCard(events: Array(alertCenter.systemEvents.suffix(5).reversed())) { onNavigate(.timeline) }
                 dashboardLink(.memory) { CompactMemoryChart(history: memoryViewModel.history) }
                 dashboardLink(.cpu) { CompactCPUChart(history: cpuViewModel.history) }
-                ProcessRankingCard(
-                    title: "Top CPU consumers",
-                    processes: topCPUProcesses,
-                    value: { ($0.cpuPercent / 100).formatted(.percent.precision(.fractionLength(1))) },
-                    onSelect: openProcess
-                )
+                if DistributionChannel.allowsProcessInspection {
+                    ProcessRankingCard(
+                        title: "Top CPU consumers",
+                        processes: topCPUProcesses,
+                        value: { ($0.cpuPercent / 100).formatted(.percent.precision(.fractionLength(1))) },
+                        onSelect: openProcess
+                    )
+                }
+                }
             }
             .padding()
         }
-        .navigationTitle("Dashboard")
+        .navigationTitle("Overview")
     }
 
     private func openProcess(_ process: ProcessSnapshot) {
@@ -143,6 +157,79 @@ struct DashboardView: View {
     private var topCPUProcesses: [ProcessSnapshot] {
         guard case .loaded(let snapshots) = processesViewModel.state else { return [] }
         return Array(snapshots.sorted { $0.cpuPercent > $1.cpuPercent }.prefix(5))
+    }
+
+    private var healthAssessment: SystemHealthAssessment {
+        let pressure: MemoryStats.Pressure? = {
+            guard case .loaded(let stats) = memoryViewModel.state else { return nil }
+            return stats.pressure
+        }()
+        let memoryTimestamp: Date? = {
+            guard case .loaded(let stats) = memoryViewModel.state else { return nil }
+            return stats.timestamp
+        }()
+        let diskStats: DiskStats? = { guard case .loaded(let stats) = diskViewModel.state else { return nil }; return stats }()
+        return SystemHealthAnalyzer.assess(
+            memoryPressure: pressure,
+            memoryTimestamp: memoryTimestamp,
+            cpuHistory: cpuViewModel.history,
+            diskUsedFraction: diskStats?.usedFraction,
+            diskTimestamp: diskStats?.timestamp,
+            thermalState: thermalViewModel.stats?.state,
+            thermalTimestamp: thermalViewModel.stats?.timestamp,
+            topMemoryProcess: topMemoryProcesses.first,
+            topCPUProcess: topCPUProcesses.first
+        )
+    }
+}
+
+private struct HealthSummaryCard: View {
+    let assessment: SystemHealthAssessment
+    let action: () -> Void
+
+    var body: some View {
+        GroupBox {
+            HStack(alignment: .top, spacing: 14) {
+                Image(systemName: icon)
+                    .font(.title2).foregroundStyle(color).frame(width: 30)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(assessment.title).font(.title3).fontWeight(.semibold)
+                    Text(assessment.evidence)
+                    Text(assessment.recommendation).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Review") { action() }
+                    .buttonStyle(.borderedProminent)
+                    .tint(assessment.level == .critical ? .red : nil)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 4)
+        } label: {
+            Text("Current condition")
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Current condition: \(assessment.title). \(assessment.evidence) \(assessment.recommendation)")
+        .accessibilityHint("Open recommended details")
+    }
+
+    private var icon: String {
+        switch assessment.level {
+        case .collecting: "ellipsis.circle"
+        case .partial: "circle.lefthalf.filled"
+        case .stale: "clock.badge.exclamationmark"
+        case .healthy: "checkmark.circle.fill"
+        case .elevated: "exclamationmark.triangle.fill"
+        case .critical: "exclamationmark.octagon.fill"
+        }
+    }
+
+    private var color: Color {
+        switch assessment.level {
+        case .collecting, .partial, .stale: .secondary
+        case .healthy: .green
+        case .elevated: .orange
+        case .critical: .red
+        }
     }
 }
 

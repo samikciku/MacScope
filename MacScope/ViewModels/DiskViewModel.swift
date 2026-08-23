@@ -34,6 +34,10 @@ final class DiskViewModel: ObservableObject {
         }
     }
 
+    func resetSamplingBaseline() async {
+        await monitor.resetBaseline()
+    }
+
     var visibleStorageEntries: [StorageEntry] {
         switch storageFilter {
         case .all: storageEntries

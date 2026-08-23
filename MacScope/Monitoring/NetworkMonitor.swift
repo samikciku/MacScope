@@ -40,6 +40,10 @@ enum NetworkCalculations {
 actor NetworkMonitor: NetworkMonitorProtocol {
     private var previousSnapshot: NetworkCounterSnapshot?
 
+    func resetBaseline() {
+        previousSnapshot = nil
+    }
+
     func currentStats() async throws -> NetworkStats {
         var firstAddress: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&firstAddress) == 0 else {

@@ -28,4 +28,25 @@ struct ProcessMetadataResolverTests {
         #expect(ProcessMetadataResolver.bundleIdentifier(executablePath: executable.path) == "com.example.metadata-test")
         #expect(ProcessMetadataResolver.bundleIdentifier(executablePath: "/usr/bin/true") == nil)
     }
+
+    @Test func reportsMissingSigningTargetsWithoutInventingMetadata() {
+        #expect(ProcessMetadataResolver.codeSigningInfo(executablePath: nil) == nil)
+
+        let result = ProcessMetadataResolver.codeSigningInfo(
+            executablePath: "/definitely/not/a/real/MacScope/executable"
+        )
+        #expect(result?.validation == .unavailable)
+        #expect(result?.signingIdentifier == nil)
+        #expect(result?.teamIdentifier == nil)
+    }
+
+    @Test func readsSigningMetadataForCurrentExecutable() {
+        let result = ProcessMetadataResolver.codeSigningInfo(executablePath: CommandLine.arguments.first)
+
+        #expect(result != nil)
+        #expect(result?.validation != .unavailable)
+        if result?.validation == .valid {
+            #expect(result?.signingIdentifier?.isEmpty == false)
+        }
+    }
 }

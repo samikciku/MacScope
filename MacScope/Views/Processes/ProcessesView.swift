@@ -8,6 +8,10 @@ struct ProcessesView: View {
     var body: some View {
         VStack(spacing: 0) {
             controls
+            if let result = viewModel.lastActionResult {
+                ProcessActionResultBanner(result: result) { viewModel.clearActionResult() }
+                    .padding(.horizontal, 12).padding(.bottom, 8)
+            }
             Divider()
             content
         }
@@ -16,11 +20,6 @@ struct ProcessesView: View {
         .sheet(item: selectedProcessBinding) { process in
             ProcessDetailView(identity: process.identity, viewModel: viewModel)
                 .frame(minWidth: 560, minHeight: 580)
-        }
-        .alert("Process Action", isPresented: actionMessagePresented) {
-            Button("OK") { viewModel.actionMessage = nil }
-        } message: {
-            Text(viewModel.actionMessage ?? "")
         }
         .alert("End Task?", isPresented: terminationConfirmationPresented, presenting: pendingTermination) { process in
             Button("Cancel", role: .cancel) { pendingTermination = nil }
@@ -31,17 +30,25 @@ struct ProcessesView: View {
         } message: { process in
             Text("End \(process.name) (PID \(process.pid))? Unsaved work may be lost. MacScope will send a normal termination request.")
         }
-        .alert("End All Tasks?", isPresented: groupTerminationConfirmationPresented, presenting: pendingGroupTermination) { group in
+        .alert(groupAlertTitle, isPresented: groupTerminationConfirmationPresented, presenting: pendingGroupTermination) { group in
             Button("Cancel", role: .cancel) { pendingGroupTermination = nil }
-            Button("End All Tasks", role: .destructive) {
+            Button(group.applicationPath == nil ? "End All Tasks" : "Quit Application", role: .destructive) {
                 pendingGroupTermination = nil
                 Task { await viewModel.terminate(group) }
             }
         } message: { group in
             let eligible = viewModel.terminableProcesses(in: group).count
             let protected = group.processes.count - eligible
-            Text("End \(eligible) \(eligible == 1 ? "process" : "processes") in \(group.name)? Unsaved work may be lost.\(protected > 0 ? " \(protected) protected processes will be skipped." : "")")
+            if group.applicationPath == nil {
+                Text("End \(eligible) \(eligible == 1 ? "process" : "processes") in \(group.name)? Unsaved work may be lost.\(protected > 0 ? " \(protected) protected processes will be skipped." : "")")
+            } else {
+                Text("Ask \(group.name) to quit normally? The application can prompt for unsaved work. If macOS cannot identify the running application, MacScope will take no action rather than silently fall back to process signals.")
+            }
         }
+    }
+
+    private var groupAlertTitle: String {
+        pendingGroupTermination?.applicationPath == nil ? "End All Tasks?" : "Quit Application?"
     }
 
     private var selectedProcessBinding: Binding<ProcessSnapshot?> {
@@ -51,13 +58,6 @@ struct ProcessesView: View {
                 return viewModel.process(with: selection)
             },
             set: { newValue in viewModel.selection = newValue?.identity }
-        )
-    }
-
-    private var actionMessagePresented: Binding<Bool> {
-        Binding(
-            get: { viewModel.actionMessage != nil },
-            set: { if !$0 { viewModel.actionMessage = nil } }
         )
     }
 
@@ -308,6 +308,7 @@ struct ProcessesView: View {
         case .allowed:
             Button("End Task…", role: .destructive) { pendingTermination = process }
                 .buttonStyle(.borderless)
+                .disabled(viewModel.processesBeingTerminated.contains(process.identity))
                 .accessibilityLabel("End task \(process.name), PID \(process.pid)")
         case .denied(let reason):
             Button("Protected") {}
@@ -333,10 +334,11 @@ struct ProcessesView: View {
     private func endGroupTasksButton(_ group: ApplicationProcessGroup) -> some View {
         let count = viewModel.terminableProcesses(in: group).count
         if count > 0 {
-            Button("End All…", role: .destructive) { pendingGroupTermination = group }
+            Button(group.applicationPath == nil ? "End All…" : "Quit…", role: .destructive) { pendingGroupTermination = group }
                 .buttonStyle(.borderless)
-                .help("End \(count) terminable \(count == 1 ? "process" : "processes") in \(group.name)")
-                .accessibilityLabel("End all tasks in \(group.name)")
+                .disabled(viewModel.groupsBeingTerminated.contains(group.id))
+                .help(group.applicationPath == nil ? "End \(count) terminable process(es) in \(group.name)" : "Ask \(group.name) to quit normally")
+                .accessibilityLabel(group.applicationPath == nil ? "End all tasks in \(group.name)" : "Quit application \(group.name)")
         } else {
             Button("Protected") {}
                 .buttonStyle(.borderless)
@@ -349,7 +351,7 @@ struct ProcessesView: View {
     private func groupContextMenu(_ group: ApplicationProcessGroup) -> some View {
         let count = viewModel.terminableProcesses(in: group).count
         if count > 0 {
-            Button("End All Tasks…", role: .destructive) { pendingGroupTermination = group }
+            Button(group.applicationPath == nil ? "End All Tasks…" : "Quit Application…", role: .destructive) { pendingGroupTermination = group }
         } else {
             Button("Protected Group") {}
                 .disabled(true)

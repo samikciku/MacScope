@@ -1,5 +1,20 @@
 import Foundation
 
+enum GPUDataSource: String, CaseIterable, Identifiable, Sendable {
+    case metal
+    case experimentalIORegistry
+    case privilegedHelper
+
+    var id: Self { self }
+    var title: String {
+        switch self {
+        case .metal: "Metal metadata"
+        case .experimentalIORegistry: "Experimental live metrics"
+        case .privilegedHelper: "Advanced helper"
+        }
+    }
+}
+
 @MainActor
 final class GPUViewModel: ObservableObject {
     enum State: Equatable {
@@ -10,15 +25,43 @@ final class GPUViewModel: ObservableObject {
 
     @Published private(set) var state: State = .loading
     @Published private(set) var utilizationHistory: [(timestamp: Date, utilization: Double)] = []
-    private let monitor: any GPUMonitorProtocol
+    @Published var source: GPUDataSource {
+        didSet {
+            defaults.set(source.rawValue, forKey: Self.sourceKey)
+            historyBuffer = RingBuffer(capacity: 300)
+            utilizationHistory = []
+            state = .loading
+        }
+    }
+    let helperManager = GPUHelperManager()
+    private static let sourceKey = "gpu.dataSource"
+    private let defaults: UserDefaults
+    private let injectedMonitor: (any GPUMonitorProtocol)?
     private var historyBuffer = RingBuffer<GPUUtilizationSample>(capacity: 300)
 
-    init(monitor: any GPUMonitorProtocol = MetalGPUMonitor()) {
-        self.monitor = monitor
+    init(monitor: (any GPUMonitorProtocol)? = nil, defaults: UserDefaults = .standard) {
+        self.injectedMonitor = monitor
+        self.defaults = defaults
+        self.source = defaults.string(forKey: Self.sourceKey)
+            .flatMap(GPUDataSource.init(rawValue:)) ?? .metal
+    }
+
+    func enforceAllowedSources(experimentalEnabled: Bool, helperEnabled: Bool) {
+        let allowed = source == .metal
+            || (source == .experimentalIORegistry && experimentalEnabled)
+            || (source == .privilegedHelper && experimentalEnabled && helperEnabled)
+        if !allowed { source = .metal }
     }
 
     func refresh() async {
         do {
+            let monitor: any GPUMonitorProtocol = injectedMonitor ?? {
+                switch source {
+                case .metal: MetalGPUMonitor()
+                case .experimentalIORegistry: ExperimentalIORegistryGPUMonitor()
+                case .privilegedHelper: PowermetricsGPUMonitor()
+                }
+            }()
             let stats = try await monitor.currentStats()
             if case .available(let utilization) = stats.utilization {
                 historyBuffer.append(.init(timestamp: stats.timestamp, utilization: utilization))

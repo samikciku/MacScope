@@ -144,4 +144,31 @@ struct AlertCenterTests {
         #expect(center.systemEvents.first?.message == "Timeline 5")
         #expect(center.systemEvents.last?.message == "Timeline 504")
     }
+
+    @Test @MainActor func recordsOnlyActualBatteryAndLowPowerTransitions() {
+        let center = AlertCenter()
+        let start = Date(timeIntervalSince1970: 20)
+        center.observeBatteryState(battery(at: start, source: .battery, charging: false))
+        center.observeBatteryState(battery(at: start.addingTimeInterval(1), source: .battery, charging: false))
+        center.observeBatteryState(battery(at: start.addingTimeInterval(2), source: .ac, charging: true))
+        center.observeThermalState(.init(timestamp: start, state: .nominal, lowPowerModeEnabled: false))
+        center.observeThermalState(.init(timestamp: start.addingTimeInterval(1), state: .nominal, lowPowerModeEnabled: false))
+        center.observeThermalState(.init(timestamp: start.addingTimeInterval(2), state: .nominal, lowPowerModeEnabled: true))
+
+        #expect(center.systemEvents.map(\.kind) == [.batteryPowerTransition, .lowPowerModeTransition])
+        #expect(center.systemEvents.allSatisfy { $0.severity == .information })
+    }
+
+    private func battery(
+        at timestamp: Date,
+        source: BatteryStats.PowerSource,
+        charging: Bool
+    ) -> BatteryStats {
+        BatteryStats(
+            timestamp: timestamp, name: "Battery", chargeFraction: 0.5,
+            isCharging: charging, powerSource: source, timeRemainingMinutes: nil,
+            timeToFullMinutes: nil, health: nil, maximumCapacity: 100,
+            designCapacity: nil, adapterWatts: nil
+        )
+    }
 }

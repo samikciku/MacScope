@@ -27,16 +27,14 @@ struct NetworkView: View {
         } message: { process in
             Text("End \(process.name) (PID \(process.pid))? Unsaved work may be lost. MacScope will send a normal termination request.")
         }
-        .alert("Process Action", isPresented: processActionMessagePresented) {
-            Button("OK") { processesViewModel.actionMessage = nil }
-        } message: {
-            Text(processesViewModel.actionMessage ?? "")
-        }
     }
 
     private func content(_ stats: NetworkStats) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                if let result = processesViewModel.lastActionResult {
+                    ProcessActionResultBanner(result: result) { processesViewModel.clearActionResult() }
+                }
                 GroupBox("Current activity") {
                     Grid(alignment: .leading, horizontalSpacing: 28, verticalSpacing: 12) {
                         row("Download", rate(stats.downloadBytesPerSecond))
@@ -79,9 +77,13 @@ struct NetworkView: View {
                     }
                 }
 
-                processTraffic
+                if DistributionChannel.allowsPerProcessNetwork {
+                    processTraffic
+                }
 
-                Text("Interface counters use public link-layer statistics. Per-process attribution comes from macOS nettop totals and calculated deltas; MacScope does not inspect packet contents or remote hosts.")
+                Text(DistributionChannel.allowsPerProcessNetwork
+                     ? "Interface counters use public link-layer statistics. Per-process attribution comes from macOS nettop totals and calculated deltas; MacScope does not inspect packet contents or remote hosts."
+                     : "This Mac App Store build reports public aggregate interface counters. Per-process network attribution is unavailable in App Sandbox.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
             .padding(24)
@@ -152,10 +154,6 @@ struct NetworkView: View {
 
     private var terminationConfirmationPresented: Binding<Bool> {
         Binding(get: { pendingTermination != nil }, set: { if !$0 { pendingTermination = nil } })
-    }
-
-    private var processActionMessagePresented: Binding<Bool> {
-        Binding(get: { processesViewModel.actionMessage != nil }, set: { if !$0 { processesViewModel.actionMessage = nil } })
     }
 
     private func row(_ label: String, _ value: String) -> some View {

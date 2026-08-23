@@ -1,6 +1,6 @@
 # Architecture
 
-MacScope is a native SwiftUI executable package organized into five layers:
+MacScope is a native SwiftUI task manager and system monitor organized into five layers:
 
 - `MacScope/Monitoring`: actor-isolated collectors and deterministic calculations for Mach, libproc, IOKit, Metal, `getifaddrs`, Dispatch memory pressure, and `nettop` data.
 - `MacScope/Models`: immutable, sendable snapshots and explicit availability states.

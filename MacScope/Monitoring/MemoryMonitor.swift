@@ -26,6 +26,10 @@ actor MemoryMonitor: MemoryMonitorProtocol {
         self.pressureMonitor = pressureMonitor
     }
 
+    func resetBaseline() {
+        previousPagingSnapshot = nil
+    }
+
     func currentStats() async throws -> MemoryStats {
         let host = mach_host_self()
         var pageSize: vm_size_t = 0

@@ -1,0 +1,80 @@
+name: MacScope
+options:
+  minimumXcodeGenVersion: 2.42.0
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: 6.0
+    PRODUCT_BUNDLE_IDENTIFIER: com.macscope.app
+    MARKETING_VERSION: 2.0.0
+    CURRENT_PROJECT_VERSION: 2
+    GENERATE_INFOPLIST_FILE: false
+    INFOPLIST_FILE: Packaging/Info.plist
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    ENABLE_HARDENED_RUNTIME: true
+    CODE_SIGN_STYLE: Automatic
+    MACOSX_DEPLOYMENT_TARGET: 14.0
+configs:
+  DirectDebug: debug
+  DirectRelease: release
+  AppStoreDebug: debug
+  AppStoreRelease: release
+targets:
+  MacScope:
+    type: application
+    platform: macOS
+    sources:
+      - path: MacScope
+      - path: Packaging/Assets.xcassets
+        buildPhase: resources
+      - path: Packaging/PrivacyInfo.xcprivacy
+        buildPhase: resources
+    dependencies:
+      - target: MacScopeHelperShared
+    settings:
+      configs:
+        DirectDebug:
+          CODE_SIGN_ENTITLEMENTS: Packaging/MacScope-Direct.entitlements
+        DirectRelease:
+          CODE_SIGN_ENTITLEMENTS: Packaging/MacScope-Direct.entitlements
+        AppStoreDebug:
+          CODE_SIGN_ENTITLEMENTS: Packaging/MacScope-AppStore.entitlements
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) MAC_APP_STORE"
+        AppStoreRelease:
+          CODE_SIGN_ENTITLEMENTS: Packaging/MacScope-AppStore.entitlements
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) MAC_APP_STORE"
+    scheme:
+      testTargets:
+        - MacScopeTests
+      configVariants:
+        - Direct
+        - AppStore
+  MacScopeTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: MacScopeTests
+    dependencies:
+      - target: MacScope
+      - target: MacScopeHelperShared
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        PRODUCT_BUNDLE_IDENTIFIER: com.macscope.app.tests
+      configs:
+        AppStoreDebug:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) MAC_APP_STORE"
+        AppStoreRelease:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) MAC_APP_STORE"
+  MacScopeHelperShared:
+    type: library.static
+    platform: macOS
+    sources:
+      - path: MacScopeHelperShared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.macscope.helper-shared
+        GENERATE_INFOPLIST_FILE: true
+        SWIFT_INSTALL_OBJC_HEADER: false
